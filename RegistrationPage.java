@@ -12,18 +12,18 @@ import java.sql.SQLException;
 public class RegistrationPage {
     private static JFrame registrationFrame;
     private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS_TST;encrypt=true;trustServerCertificate=true";
-	
     private static final String USER = "LMS_ADMIN";
-	private static final String PASSWORD = "Zcintilla1005";
+    private static final String PASSWORD = "Zcintilla1005";
+
     public static void main(String[] args) {
-    	
+
         registrationFrame = new JFrame("Register Account");
         registrationFrame.setSize(800, 600);
         registrationFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         ImageIcon icon = new ImageIcon("C:\\Users\\zcint\\Downloads\\download (5).png");
         registrationFrame.setIconImage(icon.getImage());
-        
+
         JPanel panel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -51,7 +51,7 @@ public class RegistrationPage {
         adminRegisterLabel.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 registrationFrame.dispose();
-                LogInPage(null);
+                openAdminLogInPage();
             }
 
             public void mouseEntered(java.awt.event.MouseEvent evt) {
@@ -157,7 +157,7 @@ public class RegistrationPage {
         loginLabel.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 registrationFrame.dispose();
-                LogInPage(null);
+                openStudentLogInPage();
             }
 
             public void mouseEntered(java.awt.event.MouseEvent evt) {
@@ -212,14 +212,20 @@ public class RegistrationPage {
                 JOptionPane.showMessageDialog(null, "Account registered successfully!");
 
                 registrationFrame.dispose();
-                LogInPage(null);
+                openStudentLogInPage();
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
     }
 
-    private static void LogInPage(Object object) {
+    // Admin login page
+    private static void openAdminLogInPage() {
         default1.LogInPage.main(new String[]{});
+    }
+
+    // Student login page
+    private static void openStudentLogInPage() {
+        default1.StudentLogInPage.main(new String[]{});
     }
 }
