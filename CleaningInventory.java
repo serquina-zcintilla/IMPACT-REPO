@@ -19,36 +19,30 @@ public class CleaningInventory {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
-        // set the bg color of the frame to light blue
         frame.getContentPane().setBackground(new Color(173, 216, 230)); // Light blue
-        
+
         ImageIcon icon = new ImageIcon("C:\\Users\\zcint\\Downloads\\download (5).png");
         frame.setIconImage(icon.getImage());
 
-        // title label
         JLabel titleLabel = new JLabel("🧼 Admin Page", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setBorder(BorderFactory.createEmptyBorder(15, 0, 10, 0));
-        titleLabel.setForeground(new Color(0, 0, 139)); // Dark blue for text color
+        titleLabel.setForeground(new Color(0, 0, 139)); // Dark blue
         frame.add(titleLabel, BorderLayout.NORTH);
 
-        // inventory Table
         inventoryTable = new JTable();
         inventoryTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         inventoryTable.setRowHeight(30);
-        inventoryTable.setSelectionBackground(new Color(173, 216, 230)); // Light blue for selection
+        inventoryTable.setSelectionBackground(new Color(173, 216, 230));
         JScrollPane tableScrollPane = new JScrollPane(inventoryTable);
         tableScrollPane.setBorder(BorderFactory.createTitledBorder("Inventory Details"));
         frame.add(tableScrollPane, BorderLayout.CENTER);
 
-        // button panel
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(3, 2, 10, 10));
+        JPanel buttonPanel = new JPanel(new GridLayout(3, 2, 10, 10));
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
 
-        // define blue color for buttons
-        Color buttonColor = new Color(70, 130, 180); // Steel blue color for buttons
-        Color whiteColor = Color.WHITE; // White text color
+        Color buttonColor = new Color(70, 130, 180);
+        Color whiteColor = Color.WHITE;
 
         JButton listButton = new JButton("📋 View Inventory");
         JButton addButton = new JButton("➕ Add Item");
@@ -57,19 +51,17 @@ public class CleaningInventory {
         JButton lowStockButton = new JButton("📉 Low Stock Report");
         JButton exitButton = new JButton("🚪 Exit");
 
-        // set button colors and font
         Font buttonFont = new Font("Segoe UI", Font.PLAIN, 14);
         for (JButton button : new JButton[]{listButton, addButton, updateButton, deleteButton, lowStockButton, exitButton}) {
             button.setFont(buttonFont);
             button.setBackground(buttonColor);
             button.setForeground(whiteColor);
-            button.setFocusPainted(false); // Remove focus border
+            button.setFocusPainted(false);
             buttonPanel.add(button);
         }
 
         frame.add(buttonPanel, BorderLayout.SOUTH);
 
-        // action Listeners
         listButton.addActionListener(e -> listInventory());
         addButton.addActionListener(e -> addItem());
         updateButton.addActionListener(e -> updateItem());
@@ -85,7 +77,6 @@ public class CleaningInventory {
         try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
             String query = "SELECT ItemID, Name, Quantity, Unit, Supplier FROM dbo.inventory";
             try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
-                // create table model with data
                 DefaultTableModel model = new DefaultTableModel();
                 model.addColumn("Item ID");
                 model.addColumn("Name");
@@ -93,7 +84,6 @@ public class CleaningInventory {
                 model.addColumn("Unit");
                 model.addColumn("Supplier");
 
-                // fill the table model with data
                 while (rs.next()) {
                     model.addRow(new Object[]{
                         rs.getString("ItemID"),
@@ -104,12 +94,9 @@ public class CleaningInventory {
                     });
                 }
 
-                // set model to the JTable
                 inventoryTable.setModel(model);
-
-                // customize the table header with blue background
                 JTableHeader header = inventoryTable.getTableHeader();
-                header.setBackground(new Color(70, 130, 180)); // Steel blue color
+                header.setBackground(new Color(70, 130, 180));
                 header.setFont(new Font("Segoe UI", Font.BOLD, 14));
                 header.setForeground(Color.WHITE);
             }
@@ -120,9 +107,44 @@ public class CleaningInventory {
 
     private static void addItem() {
         String name = JOptionPane.showInputDialog("Item Name:");
+        if (name == null) {
+            JOptionPane.showMessageDialog(null, "Add operation canceled.");
+            return;
+        }
+        if (name.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Item name is required.");
+            return;
+        }
+
         String qtyStr = JOptionPane.showInputDialog("Quantity:");
+        if (qtyStr == null) {
+            JOptionPane.showMessageDialog(null, "Add operation canceled.");
+            return;
+        }
+        if (qtyStr.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Quantity is required.");
+            return;
+        }
+
         String unit = JOptionPane.showInputDialog("Unit (e.g., bottles, packs):");
+        if (unit == null) {
+            JOptionPane.showMessageDialog(null, "Add operation canceled.");
+            return;
+        }
+        if (unit.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Unit is required.");
+            return;
+        }
+
         String supplier = JOptionPane.showInputDialog("Supplier Name:");
+        if (supplier == null) {
+            JOptionPane.showMessageDialog(null, "Add operation canceled.");
+            return;
+        }
+        if (supplier.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Supplier name is required.");
+            return;
+        }
 
         try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
             String query = "INSERT INTO dbo.inventory (Name, Quantity, Unit, Supplier) VALUES (?, ?, ?, ?)";
@@ -135,16 +157,36 @@ public class CleaningInventory {
                 JOptionPane.showMessageDialog(null, "Item added!");
                 listInventory();
             }
-        } catch (SQLException e) {
+        } catch (SQLException | NumberFormatException e) {
             JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
     }
 
     private static void updateItem() {
         String id = JOptionPane.showInputDialog("Enter Item ID to update:");
+        if (id == null) {
+            JOptionPane.showMessageDialog(null, "Update operation canceled.");
+            return;
+        }
+
         String newQty = JOptionPane.showInputDialog("New Quantity:");
+        if (newQty == null) {
+            JOptionPane.showMessageDialog(null, "Update operation canceled.");
+            return;
+        }
 
         try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String checkQuery = "SELECT COUNT(*) FROM dbo.inventory WHERE ItemID = ?";
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+                checkStmt.setString(1, id);
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) == 0) {
+                        JOptionPane.showMessageDialog(null, "Item ID not found.");
+                        return;
+                    }
+                }
+            }
+
             String query = "UPDATE dbo.inventory SET Quantity = ? WHERE ItemID = ?";
             try (PreparedStatement stmt = conn.prepareStatement(query)) {
                 stmt.setInt(1, Integer.parseInt(newQty));
@@ -153,15 +195,30 @@ public class CleaningInventory {
                 JOptionPane.showMessageDialog(null, "Item updated!");
                 listInventory();
             }
-        } catch (SQLException e) {
+        } catch (SQLException | NumberFormatException e) {
             JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
     }
 
     private static void deleteItem() {
         String id = JOptionPane.showInputDialog("Enter Item ID to delete:");
+        if (id == null) {
+            JOptionPane.showMessageDialog(null, "Delete operation canceled.");
+            return;
+        }
 
         try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String checkQuery = "SELECT COUNT(*) FROM dbo.inventory WHERE ItemID = ?";
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+                checkStmt.setString(1, id);
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) == 0) {
+                        JOptionPane.showMessageDialog(null, "Item ID not found.");
+                        return;
+                    }
+                }
+            }
+
             String query = "DELETE FROM dbo.inventory WHERE ItemID = ?";
             try (PreparedStatement stmt = conn.prepareStatement(query)) {
                 stmt.setString(1, id);
