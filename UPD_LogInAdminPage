@@ -10,7 +10,7 @@ public class LogInPage {
 
     public static void main(String[] args) {
         JFrame adminFrame = new JFrame("Admin Login");
-        adminFrame.setSize(800, 600); // Set same size as RegistrationPage
+        adminFrame.setSize(800, 600);
         adminFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         ImageIcon icon = new ImageIcon("C:\\Users\\zcint\\Downloads\\download (5).png");
@@ -65,7 +65,8 @@ public class LogInPage {
 
             if (username.equals(ADMIN_USERNAME) && password.equals(ADMIN_PASSWORD)) {
                 JOptionPane.showMessageDialog(null, "Login successful!");
-                // Proceed to admin dashboard or next step
+                adminFrame.dispose(); // Close login window
+                CleaningInventory1.main(new String[]{}); // Open Cleaning Inventory Dashboard
             } else {
                 JOptionPane.showMessageDialog(null, "Invalid credentials. Try again.");
             }
@@ -102,7 +103,6 @@ public class LogInPage {
             }
         });
 
-        // Add components
         panel.add(Box.createVerticalGlue());
         panel.add(titleLabel);
         panel.add(Box.createRigidArea(new Dimension(0, 20)));
@@ -118,7 +118,7 @@ public class LogInPage {
         panel.add(Box.createVerticalGlue());
 
         adminFrame.add(panel);
-        adminFrame.setLocationRelativeTo(null); // Center on screen
+        adminFrame.setLocationRelativeTo(null);
         adminFrame.setVisible(true);
     }
 }
