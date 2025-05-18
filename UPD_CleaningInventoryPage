@@ -24,7 +24,7 @@ public class CleaningInventory1 {
         ImageIcon icon = new ImageIcon("C:\\Users\\zcint\\Downloads\\download (5).png");
         frame.setIconImage(icon.getImage());
 
-        JLabel titleLabel = new JLabel("Admin Page", SwingConstants.CENTER);
+        JLabel titleLabel = new JLabel("🧼 Admin Page", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setBorder(BorderFactory.createEmptyBorder(15, 0, 10, 0));
         titleLabel.setForeground(new Color(0, 0, 139)); // Dark blue
