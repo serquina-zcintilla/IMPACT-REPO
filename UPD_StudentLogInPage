@@ -1,0 +1,144 @@
+package default1;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.sql.*;
+
+public class StudentLogInPage {
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS Test;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    public static void main(String[] args) {
+        JFrame studentFrame = new JFrame("Student Login");
+        studentFrame.setSize(800, 600);  // same fixed size like Admin Login
+        studentFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        // Optional: set icon if you want
+        // ImageIcon icon = new ImageIcon("path_to_icon.png");
+        // studentFrame.setIconImage(icon.getImage());
+
+        JPanel panel = new JPanel() {
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                GradientPaint gp = new GradientPaint(0, 0, new Color(0, 51, 102),
+                                                     getWidth(), getHeight(), new Color(0, 102, 204));
+                g2d.setPaint(gp);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        JLabel titleLabel = new JLabel("Student Login");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel idLabel = new JLabel("ID Number");
+        idLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        idLabel.setForeground(Color.WHITE);
+        idLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JTextField idField = new JTextField();
+        idField.setMaximumSize(new Dimension(300, 30));
+        idField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        idField.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel passLabel = new JLabel("Password:");
+        passLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        passLabel.setForeground(Color.WHITE);
+        passLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPasswordField passField = new JPasswordField();
+        passField.setMaximumSize(new Dimension(300, 30));
+        passField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        passField.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JButton loginBtn = new JButton("Log In");
+        loginBtn.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        loginBtn.setBackground(Color.WHITE);
+        loginBtn.setForeground(new Color(0, 51, 102));
+        loginBtn.setFocusPainted(false);
+        loginBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        loginBtn.addActionListener((ActionEvent e) -> {
+            String idNumber = idField.getText().trim();
+            String password = new String(passField.getPassword());
+
+            if (validateCredentials(idNumber, password)) {
+                JOptionPane.showMessageDialog(null, "Welcome Student!");
+                studentFrame.dispose();
+                StudentPage.main(new String[]{});
+            } else {
+                JOptionPane.showMessageDialog(null, "Invalid Student Credentials.");
+            }
+        });
+
+        loginBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                loginBtn.setBackground(new Color(204, 229, 255));
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                loginBtn.setBackground(Color.WHITE);
+            }
+        });
+
+        JLabel backToRegister = new JLabel("Back to Registration");
+        backToRegister.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        backToRegister.setForeground(Color.WHITE);
+        backToRegister.setAlignmentX(Component.CENTER_ALIGNMENT);
+        backToRegister.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        backToRegister.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                studentFrame.dispose();
+                default1.RegistrationPage.main(new String[]{});
+            }
+
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                backToRegister.setForeground(new Color(204, 204, 255));
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                backToRegister.setForeground(Color.WHITE);
+            }
+        });
+
+        panel.add(Box.createVerticalGlue());
+        panel.add(titleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 20)));
+        panel.add(idLabel);
+        panel.add(idField);
+        panel.add(Box.createRigidArea(new Dimension(0, 10)));
+        panel.add(passLabel);
+        panel.add(passField);
+        panel.add(Box.createRigidArea(new Dimension(0, 20)));
+        panel.add(loginBtn);
+        panel.add(Box.createRigidArea(new Dimension(0, 50)));
+        panel.add(backToRegister);
+        panel.add(Box.createVerticalGlue());
+
+        studentFrame.add(panel);
+        studentFrame.setLocationRelativeTo(null);  // center screen
+        studentFrame.setVisible(true);
+    }
+
+    private static boolean validateCredentials(String idNumber, String password) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "SELECT * FROM dbo.users WHERE id_number = ? AND password = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, idNumber);
+                stmt.setString(2, password);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    return rs.next();
+                }
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Database Error: " + e.getMessage());
+        }
+        return false;
+    }
+}
