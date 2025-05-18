@@ -1,0 +1,124 @@
+package default1;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+
+public class LogInPage {
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_PASSWORD = "admin123";
+
+    public static void main(String[] args) {
+        JFrame adminFrame = new JFrame("Admin Login");
+        adminFrame.setSize(800, 600); // Set same size as RegistrationPage
+        adminFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        ImageIcon icon = new ImageIcon("C:\\Users\\zcint\\Downloads\\download (5).png");
+        adminFrame.setIconImage(icon.getImage());
+
+        JPanel panel = new JPanel() {
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                GradientPaint gp = new GradientPaint(0, 0, new Color(0, 51, 102), getWidth(), getHeight(), new Color(0, 102, 204));
+                g2d.setPaint(gp);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        JLabel titleLabel = new JLabel("Admin Login");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel userLabel = new JLabel("Username");
+        userLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        userLabel.setForeground(Color.WHITE);
+        userLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JTextField userField = new JTextField();
+        userField.setMaximumSize(new Dimension(300, 30));
+        userField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        userField.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel passLabel = new JLabel("Password:");
+        passLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        passLabel.setForeground(Color.WHITE);
+        passLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPasswordField passField = new JPasswordField();
+        passField.setMaximumSize(new Dimension(300, 30));
+        passField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        passField.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JButton loginBtn = new JButton("Log In");
+        loginBtn.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        loginBtn.setBackground(Color.WHITE);
+        loginBtn.setForeground(new Color(0, 51, 102));
+        loginBtn.setFocusPainted(false);
+        loginBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        loginBtn.addActionListener((ActionEvent e) -> {
+            String username = userField.getText();
+            String password = new String(passField.getPassword());
+
+            if (username.equals(ADMIN_USERNAME) && password.equals(ADMIN_PASSWORD)) {
+                JOptionPane.showMessageDialog(null, "Login successful!");
+                // Proceed to admin dashboard or next step
+            } else {
+                JOptionPane.showMessageDialog(null, "Invalid credentials. Try again.");
+            }
+        });
+
+        loginBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                loginBtn.setBackground(new Color(204, 229, 255));
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                loginBtn.setBackground(Color.WHITE);
+            }
+        });
+
+        JLabel backToRegister = new JLabel("Back to Registration");
+        backToRegister.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        backToRegister.setForeground(Color.WHITE);
+        backToRegister.setAlignmentX(Component.CENTER_ALIGNMENT);
+        backToRegister.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        backToRegister.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                adminFrame.dispose();
+                default1.RegistrationPage.main(new String[]{});
+            }
+
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                backToRegister.setForeground(new Color(204, 204, 255));
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                backToRegister.setForeground(Color.WHITE);
+            }
+        });
+
+        // Add components
+        panel.add(Box.createVerticalGlue());
+        panel.add(titleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 20)));
+        panel.add(userLabel);
+        panel.add(userField);
+        panel.add(Box.createRigidArea(new Dimension(0, 10)));
+        panel.add(passLabel);
+        panel.add(passField);
+        panel.add(Box.createRigidArea(new Dimension(0, 20)));
+        panel.add(loginBtn);
+        panel.add(Box.createRigidArea(new Dimension(0, 50)));
+        panel.add(backToRegister);
+        panel.add(Box.createVerticalGlue());
+
+        adminFrame.add(panel);
+        adminFrame.setLocationRelativeTo(null); // Center on screen
+        adminFrame.setVisible(true);
+    }
+}
