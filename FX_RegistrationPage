@@ -1,0 +1,160 @@
+package default1;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.Cursor;
+import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
+import javafx.scene.paint.*;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
+public class RegistrationPage extends Application {
+
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS Test;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("Register Account");
+
+        VBox root = new VBox(10);
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(30));
+        root.setBackground(new Background(new BackgroundFill(
+                new LinearGradient(0, 0, 1, 1, true, CycleMethod.NO_CYCLE,
+                        new Stop(0, Color.web("#003366")),
+                        new Stop(1, Color.web("#0066cc"))),
+                CornerRadii.EMPTY, Insets.EMPTY)));
+
+        Label titleLabel = new Label("Register an Account");
+        titleLabel.setFont(Font.font("Segoe UI", 28));
+        titleLabel.setTextFill(Color.WHITE);
+
+        Label adminLabel = new Label("Log in as Admin");
+        adminLabel.setFont(Font.font("Segoe UI", 16));
+        adminLabel.setTextFill(Color.WHITE);
+        adminLabel.setOnMouseClicked(e -> {
+            primaryStage.close();
+            Stage adminStage = new Stage();
+            try {
+                new LogInPage().start(adminStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+        adminLabel.setOnMouseEntered(e -> adminLabel.setTextFill(Color.LIGHTGRAY));
+        adminLabel.setOnMouseExited(e -> adminLabel.setTextFill(Color.WHITE));
+        adminLabel.setCursor(Cursor.HAND);
+
+        TextField fullNameField = createTextField("Full Name");
+        TextField idNumberField = createTextField("ID Number");
+        PasswordField passwordField = createPasswordField("Password");
+        PasswordField confirmPasswordField = createPasswordField("Confirm Password");
+        TextField emailField = createTextField("Email (Optional)");
+
+        Button registerButton = new Button("Register");
+        registerButton.setFont(Font.font("Segoe UI", 16));
+        registerButton.setStyle("-fx-background-color: white; -fx-text-fill: #003366;");
+        registerButton.setOnMouseEntered(e -> registerButton.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;"));
+        registerButton.setOnMouseExited(e -> registerButton.setStyle("-fx-background-color: white; -fx-text-fill: #003366;"));
+
+        registerButton.setOnAction(e -> {
+            String fullName = fullNameField.getText();
+            String idNumber = idNumberField.getText();
+            String password = passwordField.getText();
+            String confirmPassword = confirmPasswordField.getText();
+            String email = emailField.getText();
+
+            if (fullName.isEmpty() || idNumber.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Please fill out all the required fields.");
+            } else if (!password.equals(confirmPassword)) {
+                showAlert(Alert.AlertType.ERROR, "Passwords do not match. Please try again.");
+            } else {
+                registerAccount(fullName, idNumber, password, email, primaryStage);
+            }
+        });
+
+        Label loginLabel = new Label("Already have an account? Log in here");
+        loginLabel.setFont(Font.font("Segoe UI", 14));
+        loginLabel.setTextFill(Color.WHITE);
+        loginLabel.setCursor(Cursor.HAND);
+        loginLabel.setOnMouseEntered(e -> loginLabel.setTextFill(Color.LIGHTGRAY));
+        loginLabel.setOnMouseExited(e -> loginLabel.setTextFill(Color.WHITE));
+        loginLabel.setOnMouseClicked(e -> {
+            primaryStage.close();
+            Stage loginStage = new Stage();
+            try {
+                new StudentLogInPage().start(loginStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        root.getChildren().addAll(titleLabel, adminLabel,
+                fullNameField, idNumberField, passwordField, confirmPasswordField, emailField,
+                registerButton, loginLabel);
+
+        Scene scene = new Scene(root, 800, 600);
+        primaryStage.getIcons().add(new Image("file:C:\\Users\\zcint\\Downloads\\download (5).png"));
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private TextField createTextField(String prompt) {
+        TextField tf = new TextField();
+        tf.setPromptText(prompt);
+        tf.setFont(Font.font("Segoe UI", 16));
+        tf.setMaxWidth(300);
+        return tf;
+    }
+
+    private PasswordField createPasswordField(String prompt) {
+        PasswordField pf = new PasswordField();
+        pf.setPromptText(prompt);
+        pf.setFont(Font.font("Segoe UI", 16));
+        pf.setMaxWidth(300);
+        return pf;
+    }
+
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Registration");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void registerAccount(String fullName, String idNumber, String password, String email, Stage stage) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "INSERT INTO dbo.users (full_name, id_number, password, email) VALUES (?, ?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, fullName);
+                stmt.setString(2, idNumber);
+                stmt.setString(3, password);
+                stmt.setString(4, email.isEmpty() ? null : email);
+                stmt.executeUpdate();
+                showAlert(Alert.AlertType.INFORMATION, "Account registered successfully!");
+                stage.close();
+                Stage loginStage = new Stage();
+                new StudentLogInPage().start(loginStage);
+            }
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Error: " + e.getMessage());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+}
