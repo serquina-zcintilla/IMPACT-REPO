@@ -1,0 +1,132 @@
+package default1;
+
+import javafx.application.Application;
+import javafx.geometry.*;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.*;
+import javafx.scene.paint.*;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+
+import java.sql.*;
+
+public class StudentLogInPage extends Application {
+
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS Test;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("Student Login");
+
+        Stop[] stops = new Stop[]{new Stop(0, Color.web("#003366")), new Stop(1, Color.web("#0066CC"))};
+        LinearGradient gradient = new LinearGradient(0, 0, 1, 1, true, CycleMethod.NO_CYCLE, stops);
+
+        VBox root = new VBox(15);
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(30));
+        root.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
+
+        Label titleLabel = new Label("Student Login");
+        titleLabel.setFont(Font.font("Segoe UI", 28));
+        titleLabel.setTextFill(Color.WHITE);
+
+        Label idLabel = new Label("ID Number:");
+        idLabel.setFont(Font.font("Segoe UI", 16));
+        idLabel.setTextFill(Color.WHITE);
+        TextField idField = new TextField();
+        idField.setMaxWidth(300);
+        idField.setFont(Font.font("Segoe UI", 16));
+
+        Label passLabel = new Label("Password:");
+        passLabel.setFont(Font.font("Segoe UI", 16));
+        passLabel.setTextFill(Color.WHITE);
+        PasswordField passField = new PasswordField();
+        passField.setMaxWidth(300);
+        passField.setFont(Font.font("Segoe UI", 16));
+
+        Button loginBtn = new Button("Log In");
+        loginBtn.setFont(Font.font("Segoe UI", 16));
+        loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;");
+        loginBtn.setCursor(javafx.scene.Cursor.HAND);
+        loginBtn.setEffect(new DropShadow());
+
+        loginBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e -> loginBtn.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;"));
+        loginBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e -> loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;"));
+
+        loginBtn.setOnAction(e -> {
+            String idNumber = idField.getText().trim();
+            String password = passField.getText();
+            if (validateCredentials(idNumber, password)) {
+                showAlert(Alert.AlertType.INFORMATION, "Welcome Student!");
+                primaryStage.close();
+                StudentPage.launchWithStudentId(idNumber); // Call StudentPage after successful login
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Invalid Student Credentials.");
+            }
+        });
+
+        Label backToRegister = new Label("Back to Registration");
+        backToRegister.setFont(Font.font("Segoe UI", 14));
+        backToRegister.setTextFill(Color.WHITE);
+        backToRegister.setCursor(javafx.scene.Cursor.HAND);
+
+        backToRegister.setOnMouseClicked(e -> {
+            primaryStage.close();
+            Stage registrationStage = new Stage();
+            try {
+                new RegistrationPage().start(registrationStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        backToRegister.setOnMouseEntered(e -> backToRegister.setTextFill(Color.LIGHTBLUE));
+        backToRegister.setOnMouseExited(e -> backToRegister.setTextFill(Color.WHITE));
+
+        root.getChildren().addAll(
+                titleLabel,
+                idLabel, idField,
+                passLabel, passField,
+                loginBtn,
+                backToRegister
+        );
+
+        Scene scene = new Scene(root, 800, 600);
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(false);
+        primaryStage.show();
+    }
+
+    private boolean validateCredentials(String idNumber, String password) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "SELECT * FROM dbo.users WHERE id_number = ? AND password = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, idNumber);
+                stmt.setString(2, password);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    return rs.next(); // returns true if user found
+                }
+            }
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error: " + e.getMessage());
+        }
+        return false;
+    }
+
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Login");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
