@@ -1,0 +1,43 @@
+-- Table for inventory
+CREATE TABLE dbo.inventory (
+    ItemID INT PRIMARY KEY IDENTITY(1,1),
+    Name VARCHAR(100),
+    Quantity INT,
+    Unit VARCHAR(50),
+    Supplier VARCHAR(100) 
+);
+
+-- Table for users
+CREATE TABLE dbo.users (
+    UserID INT IDENTITY(1,1) PRIMARY KEY,
+    full_name NVARCHAR(100) NOT NULL,
+    id_number NVARCHAR(50) NOT NULL,
+    password NVARCHAR(50) NOT NULL,
+    email NVARCHAR(100) NULL
+);
+
+-- Table for borrowed tools
+CREATE TABLE dbo.borrowed_tools (
+    StudentID VARCHAR(50) NOT NULL,
+    ItemID INT NOT NULL,
+    Quantity INT,
+    PRIMARY KEY (StudentID, ItemID)
+);
+
+-- Table for borrowed history
+CREATE TABLE borrow_history (
+    HistoryID INT IDENTITY(1,1) PRIMARY KEY,
+    StudentID VARCHAR(50),
+    ItemID INT,
+    Quantity INT,
+    DateBorrowed DATETIME DEFAULT GETDATE()
+);
+
+-- Table for return history
+CREATE TABLE return_history (
+    HistoryID INT IDENTITY(1,1) PRIMARY KEY,
+    StudentID VARCHAR(50),
+    ItemID INT,
+    Quantity INT,
+    DateReturned DATETIME DEFAULT GETDATE()
+);
