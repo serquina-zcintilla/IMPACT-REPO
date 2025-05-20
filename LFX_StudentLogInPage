@@ -1,0 +1,234 @@
+package default1;
+
+// ==== Required imports for JavaFX UI components, layout, database handling, and styles ====
+import javafx.application.Application;
+import javafx.geometry.*;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.*;
+import javafx.scene.paint.*;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+import java.sql.*;
+
+public class StudentLogInPage extends Application {
+
+    // ==== Database credentials and URL ====
+    // Connection string para makakonek sa SQL Server database
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS Test;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";      // DB username
+    private static final String PASSWORD = "Christian"; // DB password
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("Student Login"); // Window title
+
+        // ==== UI Background Styling ====
+        // Gumagamit ng gradient background na blue tones for aesthetic
+        Stop[] stops = new Stop[]{new Stop(0, Color.web("#003366")), new Stop(1, Color.web("#0066CC"))};
+        LinearGradient gradient = new LinearGradient(0, 0, 1, 1, true, CycleMethod.NO_CYCLE, stops);
+
+        VBox root = new VBox(20); // Main vertical layout with spacing
+        root.setAlignment(Pos.CENTER); // Center alignment
+        root.setPadding(new Insets(40)); // Padding around edges
+        root.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
+
+        // ==== Title Label ====
+        // Header text para sa login page
+        Label titleLabel = new Label("STUDENT LOG IN HERE");
+        titleLabel.setFont(Font.font("Segoe UI", 30));
+        titleLabel.setTextFill(Color.WHITE);
+
+        // ==== Role Selection Radio Buttons ====
+        // Option para pumili kung Admin o Student
+        HBox roleSelection = new HBox(10);
+        roleSelection.setAlignment(Pos.CENTER);
+        ToggleGroup roleGroup = new ToggleGroup();
+
+        RadioButton adminRadio = new RadioButton("Admin");
+        adminRadio.setFont(Font.font("Segoe UI", 16));
+        adminRadio.setTextFill(Color.WHITE);
+        adminRadio.setToggleGroup(roleGroup);
+
+        RadioButton studentRadio = new RadioButton("Student");
+        studentRadio.setFont(Font.font("Segoe UI", 16));
+        studentRadio.setTextFill(Color.WHITE);
+        studentRadio.setToggleGroup(roleGroup);
+        studentRadio.setSelected(true); // Default selected is Student
+
+        roleSelection.getChildren().addAll(adminRadio, studentRadio);
+
+        // Kapag Admin ang pinili, lilipat sa LogInPage ng Admin
+        adminRadio.setOnAction(e -> {
+            primaryStage.close();
+            try {
+                new LogInPage().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // ==== ID Number Field ====
+        // Input field para sa Student ID
+        Label idLabel = new Label("ID Number:");
+        idLabel.setFont(Font.font("Segoe UI", 16));
+        idLabel.setTextFill(Color.WHITE);
+        TextField idField = new TextField();
+        idField.setMaxWidth(300);
+        idField.setFont(Font.font("Segoe UI", 16));
+
+        // ==== Password Field ====
+        // Input field para sa password
+        Label passLabel = new Label("Password:");
+        passLabel.setFont(Font.font("Segoe UI", 16));
+        passLabel.setTextFill(Color.WHITE);
+        PasswordField passField = new PasswordField();
+        passField.setMaxWidth(300);
+        passField.setFont(Font.font("Segoe UI", 16));
+
+        // ==== Terms and Conditions ====
+        // Checkbox at label para sa pagpayag sa terms
+        CheckBox termsBox = new CheckBox();
+        Label termsLabel = new Label("I agree to the Terms and Conditions");
+        termsLabel.setFont(Font.font("Segoe UI", 14));
+        termsLabel.setTextFill(Color.WHITE);
+        termsLabel.setCursor(javafx.scene.Cursor.HAND);
+
+        // ==== Clickable Terms Text ====
+        // Pag-click sa label, lalabas ang alert dialog with terms
+        termsLabel.setOnMouseClicked(e -> {
+            Alert termsAlert = new Alert(Alert.AlertType.INFORMATION);
+            termsAlert.setTitle("Terms and Conditions");
+            termsAlert.setHeaderText("IMPACT: Inventory Management Platform for All Cleaning Tools");
+            termsAlert.setContentText(
+                "1. Acceptance of Terms...\n" + // (Full terms text here)
+                "By logging into IMPACT, you confirm that you have read, understood, and agreed to these terms."
+            );
+            termsAlert.showAndWait();
+            termsBox.setSelected(true); // Auto check kapag nabasa na
+        });
+
+        // Hover effect para sa terms label
+        termsLabel.setOnMouseEntered(e -> termsLabel.setTextFill(Color.LIGHTBLUE));
+        termsLabel.setOnMouseExited(e -> termsLabel.setTextFill(Color.WHITE));
+
+        HBox termsContainer = new HBox(10, termsBox, termsLabel);
+        termsContainer.setAlignment(Pos.CENTER);
+
+        // ==== Login Button ====
+        // Button to trigger login process
+        Button loginBtn = new Button("Log In");
+        loginBtn.setFont(Font.font("Segoe UI", 16));
+        loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;");
+        loginBtn.setCursor(javafx.scene.Cursor.HAND);
+        loginBtn.setEffect(new DropShadow()); // Adds slight 3D shadow effect
+
+        // Hover effects for login button
+        loginBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e ->
+                loginBtn.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;"));
+        loginBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e ->
+                loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;"));
+
+        // ==== Login Button Action ====
+        loginBtn.setOnAction(e -> {
+            if (!termsBox.isSelected()) {
+                showAlert(Alert.AlertType.WARNING, "You must agree to the Terms and Conditions.");
+                return;
+            }
+
+            String idNumber = idField.getText().trim();
+            String password = passField.getText();
+
+            // Validate login credentials
+            if (validateCredentials(idNumber, password)) {
+                showAlert(Alert.AlertType.INFORMATION, "Welcome Student!");
+                primaryStage.close();
+                javafx.application.Platform.runLater(() -> {
+                    try {
+                        StudentPage studentPage = new StudentPage();
+                        studentPage.setStudentId(idNumber); // Pass ID to next screen
+                        Stage studentStage = new Stage();
+                        studentPage.start(studentStage);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                });
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Invalid Student Credentials.");
+            }
+        });
+
+        // ==== Back to Registration Label ====
+        // Option para bumalik sa registration page
+        Label backToRegister = new Label("Back to Registration");
+        backToRegister.setFont(Font.font("Segoe UI", 14));
+        backToRegister.setTextFill(Color.WHITE);
+        backToRegister.setCursor(javafx.scene.Cursor.HAND);
+
+        backToRegister.setOnMouseClicked(e -> {
+            primaryStage.close();
+            Stage registrationStage = new Stage();
+            try {
+                new RegistrationPage().start(registrationStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // Hover effects para sa back to register text
+        backToRegister.setOnMouseEntered(e -> backToRegister.setTextFill(Color.LIGHTBLUE));
+        backToRegister.setOnMouseExited(e -> backToRegister.setTextFill(Color.WHITE));
+
+        // ==== Add All Components to Root ====
+        root.getChildren().addAll(
+                titleLabel,
+                roleSelection,
+                idLabel, idField,
+                passLabel, passField,
+                termsContainer,
+                loginBtn,
+                backToRegister
+        );
+
+        // ==== Final Scene Settings ====
+        Scene scene = new Scene(root, 800, 600);
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(false); // Fixed window size
+        primaryStage.show();
+    }
+
+    // ==== Validate credentials against database ====
+    // Nagche-check sa database kung tama ang ID at password
+    private boolean validateCredentials(String idNumber, String password) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "SELECT * FROM dbo.users WHERE id_number = ? AND password = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, idNumber);
+                stmt.setString(2, password);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    return rs.next(); // Returns true if may match
+                }
+            }
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error: " + e.getMessage());
+        }
+        return false;
+    }
+
+    // ==== Reusable alert popup ====
+    // Nagpapakita ng message dialogs for info, error, etc.
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Login");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    // ==== Main method to launch the app ====
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
