@@ -1,0 +1,351 @@
+package default1;
+
+// Import statements para sa JavaFX UI components, layout, controls, at SQL handling
+import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.*;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+
+import java.sql.*;
+
+public class StudentPage extends Application {
+
+    // Database connection info - para ma-connect sa SQL Server database
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS Test;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    // Para ma-store ang kasalukuyang naka-login na student ID
+    private static String currentStudentId;
+
+    // TableView UI component para ipakita ang listahan ng mga tools/items
+    private TableView<Item> tableView;
+
+    // Static method para simulan ang StudentPage at i-set ang student ID bago launch
+    public static void launchWithStudentId(String studentId) {
+        currentStudentId = studentId;
+        new Thread(() -> Application.launch(StudentPage.class)).start();
+    }
+
+    // Main JavaFX start method - dito ginagawa ang UI setup at pagpapakita ng window
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("🧼 Student Dashboard - Cleaning Tools");
+
+        // Sinusubukang iload ang icon ng window mula sa file path
+        try {
+            primaryStage.getIcons().add(new Image("file:///C:/Users/zcint/Downloads/download (5).png"));
+        } catch (Exception e) {
+            System.out.println("Icon not found or failed to load.");
+        }
+
+        // Label na nagsisilbing title ng dashboard
+        Label titleLabel = new Label("Student Dashboard");
+        titleLabel.setFont(Font.font("Segoe UI", 26));
+        titleLabel.setTextFill(Color.WHITE);
+
+        // Header section na naka-HBox at may background color
+        HBox header = new HBox(titleLabel);
+        header.setPadding(new Insets(10));
+        header.setAlignment(Pos.CENTER);
+        header.setBackground(new Background(new BackgroundFill(Color.web("#006699"), CornerRadii.EMPTY, Insets.EMPTY)));
+
+        // Setup ng TableView para ipakita mga tools
+        tableView = new TableView<>();
+        tableView.setPlaceholder(new Label("Click 'View Tools' to display inventory."));
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tableView.setPrefHeight(450);
+
+        // Define columns ng TableView
+        TableColumn<Item, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+
+        TableColumn<Item, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+
+        TableColumn<Item, Integer> qtyCol = new TableColumn<>("Qty");
+        qtyCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
+
+        TableColumn<Item, String> unitCol = new TableColumn<>("Unit");
+        unitCol.setCellValueFactory(new PropertyValueFactory<>("unit"));
+
+        // Idagdag lahat ng columns sa TableView
+        tableView.getColumns().addAll(idCol, nameCol, qtyCol, unitCol);
+
+        // Mga buttons para sa functionalities: view, borrow, return, logout
+        Button viewButton = createStyledButton("📋 View Tools");
+        Button borrowButton = createStyledButton("👜 Borrow Tool");
+        Button returnButton = createStyledButton("🔁 Return Tool");
+        Button logoutButton = createStyledButton("🚪 Log Out");
+
+        // Layout ng buttons sa HBox with spacing at padding
+        HBox buttonsBox = new HBox(20, viewButton, borrowButton, returnButton, logoutButton);
+        buttonsBox.setPadding(new Insets(10));
+        buttonsBox.setAlignment(Pos.CENTER);
+
+        // Button actions - ano mangyayari pag-click
+        viewButton.setOnAction(e -> displayInventory());
+        borrowButton.setOnAction(e -> borrowTool());
+        returnButton.setOnAction(e -> returnTool());
+        logoutButton.setOnAction(e -> {
+            // Confirmation dialog bago mag-logout
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Confirm Log Out");
+            alert.setContentText("Are you sure you want to log out?");
+            alert.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.OK) {
+                    primaryStage.close();
+                    // Buksan ulit ang login page after logout
+                    javafx.application.Platform.runLater(() -> {
+                        try {
+                            new StudentLogInPage().start(new Stage());
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    });
+                }
+            });
+        });
+
+        // Main layout gamit ang BorderPane - header top, table center, buttons bottom
+        BorderPane root = new BorderPane();
+        root.setTop(header);
+        root.setCenter(tableView);
+        root.setBottom(buttonsBox);
+        BorderPane.setMargin(tableView, new Insets(10));
+
+        // Create scene at ipakita sa primary stage
+        Scene scene = new Scene(root, 700, 600);
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    // Helper method para gumawa ng buttons with consistent style
+    private Button createStyledButton(String text) {
+        Button btn = new Button(text);
+        btn.setFont(Font.font("Segoe UI", 16));
+        btn.setStyle("-fx-background-color: #CCE5FF;");
+        return btn;
+    }
+
+    // Method para kuhanin ang inventory mula sa database at ipakita sa tableView
+    private void displayInventory() {
+        ObservableList<Item> data = FXCollections.observableArrayList();
+        String query = "SELECT ItemID AS ID, Name, Quantity AS Qty, Unit FROM dbo.inventory WHERE Quantity > 0";
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            while (rs.next()) {
+                data.add(new Item(
+                        rs.getInt("ID"),
+                        rs.getString("Name"),
+                        rs.getInt("Qty"),
+                        rs.getString("Unit")
+                ));
+            }
+            tableView.setItems(data);
+
+        } catch (SQLException e) {
+            showError("Database error: " + e.getMessage());
+        }
+    }
+
+    // Logic para sa pag-borrow ng tool gamit ang dialog inputs, at update ng database
+    private void borrowTool() {
+        TextInputDialog itemDialog = new TextInputDialog();
+        itemDialog.setTitle("Borrow Tool");
+        itemDialog.setContentText("Enter Item ID:");
+        String itemIdStr = itemDialog.showAndWait().orElse("").trim();
+
+        if (itemIdStr.isEmpty()) return;
+
+        TextInputDialog qtyDialog = new TextInputDialog();
+        qtyDialog.setTitle("Borrow Tool");
+        qtyDialog.setContentText("Enter Quantity:");
+        String qtyStr = qtyDialog.showAndWait().orElse("").trim();
+
+        if (qtyStr.isEmpty()) return;
+
+        try {
+            int itemId = Integer.parseInt(itemIdStr);
+            int qty = Integer.parseInt(qtyStr);
+
+            try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+                conn.setAutoCommit(false);
+
+                // Check kung may sapat na quantity sa inventory bago mag-borrow
+                PreparedStatement checkStmt = conn.prepareStatement("SELECT Quantity FROM dbo.inventory WHERE ItemID = ?");
+                checkStmt.setInt(1, itemId);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (!rs.next() || rs.getInt("Quantity") < qty) {
+                    showError("Not enough quantity or item doesn't exist.");
+                    conn.rollback();
+                    return;
+                }
+
+                // Update inventory to subtract borrowed quantity
+                PreparedStatement updateStmt = conn.prepareStatement("UPDATE dbo.inventory SET Quantity = Quantity - ? WHERE ItemID = ?");
+                updateStmt.setInt(1, qty);
+                updateStmt.setInt(2, itemId);
+                updateStmt.executeUpdate();
+
+                // Insert borrow record para ma-track kung sino ang nag-borrow ng tool at ilang qty
+                PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO dbo.borrow (StudentID, ItemID, Quantity) VALUES (?, ?, ?)");
+                insertStmt.setString(1, currentStudentId);
+                insertStmt.setInt(2, itemId);
+                insertStmt.setInt(3, qty);
+                insertStmt.executeUpdate();
+
+                conn.commit();
+                displayInventory();
+                showInfo("Tool borrowed successfully!");
+
+            } catch (SQLException ex) {
+                showError("Error: " + ex.getMessage());
+            }
+
+        } catch (NumberFormatException e) {
+            showError("Invalid number format.");
+        }
+    }
+
+    // Logic para sa pag-return ng tool, kasama ang database update at validation
+    private void returnTool() {
+        TextInputDialog itemDialog = new TextInputDialog();
+        itemDialog.setTitle("Return Tool");
+        itemDialog.setContentText("Enter Item ID to return:");
+        String itemIdStr = itemDialog.showAndWait().orElse("").trim();
+
+        if (itemIdStr.isEmpty()) return;
+
+        TextInputDialog qtyDialog = new TextInputDialog();
+        qtyDialog.setTitle("Return Tool");
+        qtyDialog.setContentText("Enter Quantity to return:");
+        String qtyStr = qtyDialog.showAndWait().orElse("").trim();
+
+        if (qtyStr.isEmpty()) return;
+
+        try {
+            int itemId = Integer.parseInt(itemIdStr);
+            int qtyToReturn = Integer.parseInt(qtyStr);
+
+            try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+                conn.setAutoCommit(false);
+
+                // Check kung may naka-borrow ba ang student ng item na ito
+                PreparedStatement checkStmt = conn.prepareStatement(
+                    "SELECT Quantity FROM dbo.borrow WHERE StudentID = ? AND ItemID = ?"
+                );
+                checkStmt.setString(1, currentStudentId);
+                checkStmt.setInt(2, itemId);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (!rs.next()) {
+                    showError("You have not borrowed this item.");
+                    conn.rollback();
+                    return;
+                }
+
+                int borrowedQty = rs.getInt("Quantity");
+                if (qtyToReturn > borrowedQty) {
+                    showError("Return quantity exceeds borrowed quantity.");
+                    conn.rollback();
+                    return;
+                }
+
+                // Update borrow table - bawasan qty or delete record kung lahat na na-return
+                if (qtyToReturn == borrowedQty) {
+                    PreparedStatement deleteStmt = conn.prepareStatement(
+                        "DELETE FROM dbo.borrow WHERE StudentID = ? AND ItemID = ?"
+                    );
+                    deleteStmt.setString(1, currentStudentId);
+                    deleteStmt.setInt(2, itemId);
+                    deleteStmt.executeUpdate();
+                } else {
+                    PreparedStatement updateBorrowStmt = conn.prepareStatement(
+                        "UPDATE dbo.borrow SET Quantity = Quantity - ? WHERE StudentID = ? AND ItemID = ?"
+                    );
+                    updateBorrowStmt.setInt(1, qtyToReturn);
+                    updateBorrowStmt.setString(2, currentStudentId);
+                    updateBorrowStmt.setInt(3, itemId);
+                    updateBorrowStmt.executeUpdate();
+                }
+
+                // I-update din ang inventory para maibalik ang returned quantity
+                PreparedStatement updateInventoryStmt = conn.prepareStatement(
+                    "UPDATE dbo.inventory SET Quantity = Quantity + ? WHERE ItemID = ?"
+                );
+                updateInventoryStmt.setInt(1, qtyToReturn);
+                updateInventoryStmt.setInt(2, itemId);
+                updateInventoryStmt.executeUpdate();
+
+                conn.commit();
+                displayInventory();
+                showInfo("Tool returned successfully!");
+
+            } catch (SQLException ex) {
+                showError("Error: " + ex.getMessage());
+            }
+
+        } catch (NumberFormatException e) {
+            showError("Invalid number format.");
+        }
+    }
+
+    // Helper method para ipakita ang error dialog sa user
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    // Helper method para ipakita ang information dialog sa user
+    private void showInfo(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Info");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    // Inner class na nagre-represent ng bawat item sa inventory para sa TableView
+    public static class Item {
+        private final Integer id;
+        private final String name;
+        private final Integer quantity;
+        private final String unit;
+
+        public Item(Integer id, String name, Integer quantity, String unit) {
+            this.id = id;
+            this.name = name;
+            this.quantity = quantity;
+            this.unit = unit;
+        }
+
+        // Getter methods para sa property bindings sa TableView
+        public Integer getId() { return id; }
+        public String getName() { return name; }
+        public Integer getQuantity() { return quantity; }
+        public String getUnit() { return unit; }
+    }
+
+    // Main method para simulan ang JavaFX application (para testing or run directly)
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    public void setStudentId(String idNumber) {
+        // TODO Auto-generated method stub
+    }
+}
