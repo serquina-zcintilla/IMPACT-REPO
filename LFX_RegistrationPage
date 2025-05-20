@@ -1,0 +1,212 @@
+package default1;
+
+// Import ng mga kailangan para sa JavaFX UI at database connection
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.Cursor;
+import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
+public class RegistrationPage extends Application {
+
+    // Database connection string — dito nakalagay ang connection info papunta sa SQL Server
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS Test;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    public static void main(String[] args) {
+        launch(args); // Ito ang nagla-launch ng JavaFX application
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("I.M.P.A.C.T Registration"); // Title ng registration window
+
+        // Root layout — gamit ang BorderPane para ma-layout ang left and center UI sections
+        BorderPane root = new BorderPane();
+        root.setPadding(new Insets(30));
+        root.setStyle("-fx-background-color: #003366;");
+
+        // === LEFT SECTION ===
+        VBox leftSection = new VBox(20);
+        leftSection.setAlignment(Pos.TOP_LEFT);
+        leftSection.setPadding(new Insets(30, 20, 50, 30));
+
+        Image logoImage = new Image("file:src/resources/logo.png");
+        ImageView logoView = new ImageView(logoImage);
+        logoView.setFitWidth(80);
+        logoView.setPreserveRatio(true);
+
+        Label appTitle = new Label("I.M.P.A.C.T.");
+        appTitle.setFont(Font.font("Segoe UI", 36));
+        appTitle.setTextFill(Color.WHITE);
+        appTitle.setAlignment(Pos.CENTER_LEFT);
+
+        Label loginPrompt = new Label("Already have an account? Click here to Log in.");
+        loginPrompt.setFont(Font.font("Segoe UI", 14));
+        loginPrompt.setTextFill(Color.LIGHTGRAY);
+        loginPrompt.setCursor(Cursor.HAND);
+        loginPrompt.setAlignment(Pos.CENTER_LEFT);
+        loginPrompt.setOnMouseEntered(e -> loginPrompt.setTextFill(Color.WHITE));
+        loginPrompt.setOnMouseExited(e -> loginPrompt.setTextFill(Color.LIGHTGRAY));
+        loginPrompt.setOnMouseClicked(e -> {
+            primaryStage.close();
+            Stage loginStage = new Stage();
+            try {
+                new StudentLogInPage().start(loginStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        leftSection.getChildren().addAll(logoView, appTitle, loginPrompt);
+
+        Region spacerForBack = new Region();
+        VBox.setVgrow(spacerForBack, Priority.ALWAYS);
+
+        Button backButton = new Button("← Back");
+        backButton.setFont(Font.font("Segoe UI", 14));
+        backButton.setStyle("-fx-background-color: transparent; -fx-text-fill: white;");
+        backButton.setCursor(Cursor.HAND);
+        backButton.setOnMouseEntered(e -> backButton.setStyle("-fx-background-color: #004080; -fx-text-fill: white;"));
+        backButton.setOnMouseExited(e -> backButton.setStyle("-fx-background-color: transparent; -fx-text-fill: white;"));
+
+        // UPDATED: Back button now opens WelcomePage instead of StudentLogInPage
+        backButton.setOnAction(e -> {
+            primaryStage.close();
+            Stage welcomeStage = new Stage();
+            try {
+                new WelcomePage().start(welcomeStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        leftSection.getChildren().addAll(spacerForBack, backButton);
+
+        root.setLeft(leftSection);
+
+        // === RIGHT SECTION ===
+        VBox formSection = new VBox(15);
+        formSection.setAlignment(Pos.CENTER);
+        formSection.setPadding(new Insets(50));
+        formSection.setStyle("-fx-background-color: #ffffff; -fx-background-radius: 10;");
+
+        Label registerText = new Label("REGISTER YOUR ACCOUNT");
+        registerText.setFont(Font.font("Segoe UI", 20));
+        registerText.setTextFill(Color.BLACK);
+        registerText.setAlignment(Pos.CENTER);
+
+        TextField fullNameField = createTextField("Full Name");
+        TextField idNumberField = createTextField("ID Number");
+        PasswordField passwordField = createPasswordField("Password");
+        PasswordField confirmPasswordField = createPasswordField("Confirm Password");
+        TextField emailField = createTextField("Email (Optional)");
+
+        Button registerButton = new Button("Register");
+        registerButton.setFont(Font.font("Segoe UI", 16));
+        registerButton.setStyle("-fx-background-color: #003366; -fx-text-fill: white;");
+        registerButton.setOnMouseEntered(e -> registerButton.setStyle("-fx-background-color: #004080; -fx-text-fill: white;"));
+        registerButton.setOnMouseExited(e -> registerButton.setStyle("-fx-background-color: #003366; -fx-text-fill: white;"));
+
+        registerButton.setOnAction(e -> {
+            String fullName = fullNameField.getText();
+            String idNumber = idNumberField.getText();
+            String password = passwordField.getText();
+            String confirmPassword = confirmPasswordField.getText();
+            String email = emailField.getText();
+
+            if (fullName.isEmpty() || idNumber.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Please fill out all the required fields.");
+            } else if (!password.equals(confirmPassword)) {
+                showAlert(Alert.AlertType.ERROR, "Passwords do not match. Please try again.");
+            } else {
+                registerAccount(fullName, idNumber, password, email, primaryStage);
+            }
+        });
+
+        Region spacer = new Region();
+        spacer.setMinHeight(40);
+
+        Label adminLabel = new Label("Log in as Admin");
+        adminLabel.setFont(Font.font("Segoe UI", 16));
+        adminLabel.setTextFill(Color.DARKBLUE);
+        adminLabel.setCursor(Cursor.HAND);
+        adminLabel.setOnMouseEntered(e -> adminLabel.setTextFill(Color.LIGHTGRAY));
+        adminLabel.setOnMouseExited(e -> adminLabel.setTextFill(Color.DARKBLUE));
+        adminLabel.setOnMouseClicked(e -> {
+            primaryStage.close();
+            Stage adminStage = new Stage();
+            try {
+                new LogInPage().start(adminStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        formSection.getChildren().addAll(registerText, fullNameField, idNumberField, passwordField, confirmPasswordField, emailField, registerButton, spacer, adminLabel);
+        root.setCenter(formSection);
+
+        Scene scene = new Scene(root, 900, 600);
+        primaryStage.getIcons().add(new Image("file:C:\\Users\\zcint\\Downloads\\logo.png"));
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private TextField createTextField(String prompt) {
+        TextField tf = new TextField();
+        tf.setPromptText(prompt);
+        tf.setFont(Font.font("Segoe UI", 16));
+        tf.setMaxWidth(300);
+        return tf;
+    }
+
+    private PasswordField createPasswordField(String prompt) {
+        PasswordField pf = new PasswordField();
+        pf.setPromptText(prompt);
+        pf.setFont(Font.font("Segoe UI", 16));
+        pf.setMaxWidth(300);
+        return pf;
+    }
+
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Registration");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void registerAccount(String fullName, String idNumber, String password, String email, Stage stage) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "INSERT INTO dbo.users (full_name, id_number, password, email) VALUES (?, ?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, fullName);
+                stmt.setString(2, idNumber);
+                stmt.setString(3, password);
+                stmt.setString(4, email.isEmpty() ? null : email);
+                stmt.executeUpdate();
+
+                showAlert(Alert.AlertType.INFORMATION, "Account registered successfully!");
+                stage.close();
+                Stage loginStage = new Stage();
+                new StudentLogInPage().start(loginStage);
+            }
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Error: " + e.getMessage());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+}
