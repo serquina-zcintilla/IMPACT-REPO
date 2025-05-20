@@ -1,0 +1,225 @@
+// Package declaration - ginagamit para ma-organize ang code into packages
+package default1;
+
+// Import necessary JavaFX and utility classes - para magamit ang mga UI components, events, at hashing functions
+import javafx.application.Application;
+import javafx.geometry.*;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.*;
+import javafx.scene.paint.*;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+// Main class extending JavaFX Application - entry point ng JavaFX program
+public class LogInPage extends Application {
+
+    // Constant credentials for admin - naka-hash na ang password para sa security
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_PASSWORD_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
+
+    // Main method to launch the JavaFX application
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    // Start method - dito binubuo ang UI ng LogIn page
+    @Override
+    public void start(Stage adminStage) {
+        adminStage.setTitle("LOG IN PAGE");
+
+        // Gradient Background - nagbibigay ng maganda at modern look sa login screen
+        Stop[] stops = new Stop[]{
+                new Stop(0, Color.web("#003366")),
+                new Stop(1, Color.web("#0066CC"))
+        };
+        LinearGradient gradient = new LinearGradient(0, 0, 1, 1, true, CycleMethod.NO_CYCLE, stops);
+
+        VBox root = new VBox(20); // Main container na vertical ang layout
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(40));
+        root.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
+
+        // Title label - nagpapakita ng title ng login form
+        Label titleLabel = new Label("ADMIN LOG IN HERE");
+        titleLabel.setFont(Font.font("Segoe UI", 30));
+        titleLabel.setTextFill(Color.WHITE);
+
+        // Role selection (Admin / Student) - gumagamit ng radio buttons para pumili ng role
+        HBox roleSelection = new HBox(10);
+        roleSelection.setAlignment(Pos.CENTER);
+        ToggleGroup roleGroup = new ToggleGroup();
+        RadioButton adminRadio = new RadioButton("Admin");
+        adminRadio.setFont(Font.font("Segoe UI", 16));
+        adminRadio.setTextFill(Color.WHITE);
+        adminRadio.setToggleGroup(roleGroup);
+        adminRadio.setSelected(true); // Default na naka-select
+
+        RadioButton studentRadio = new RadioButton("Student");
+        studentRadio.setFont(Font.font("Segoe UI", 16));
+        studentRadio.setTextFill(Color.WHITE);
+        studentRadio.setToggleGroup(roleGroup);
+        roleSelection.getChildren().addAll(adminRadio, studentRadio);
+
+        // Kapag "Student" ang pinili, ililipat sa Student Login Page
+        studentRadio.setOnAction(e -> {
+            adminStage.close();
+            try {
+                new StudentLogInPage().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // Username input field - para sa pag-input ng username ng user
+        Label userLabel = new Label("Username:");
+        userLabel.setFont(Font.font("Segoe UI", 16));
+        userLabel.setTextFill(Color.WHITE);
+        TextField userField = new TextField();
+        userField.setMaxWidth(300);
+        userField.setFont(Font.font("Segoe UI", 16));
+
+        // Password input field - para sa password, nakatago ang input gamit ang PasswordField
+        Label passLabel = new Label("Password:");
+        passLabel.setFont(Font.font("Segoe UI", 16));
+        passLabel.setTextFill(Color.WHITE);
+        PasswordField passField = new PasswordField();
+        passField.setMaxWidth(300);
+        passField.setFont(Font.font("Segoe UI", 16));
+
+        // Terms and Conditions checkbox + clickable label - para siguraduhing nag-aagree ang user sa terms bago makalogin
+        CheckBox termsBox = new CheckBox();
+        Label termsLabel = new Label("I agree to the Terms and Conditions");
+        termsLabel.setFont(Font.font("Segoe UI", 14));
+        termsLabel.setTextFill(Color.WHITE);
+        termsLabel.setCursor(javafx.scene.Cursor.HAND);
+        termsLabel.setOnMouseClicked(e -> showTermsAndConditions(termsBox));
+        termsLabel.setOnMouseEntered(e -> termsLabel.setTextFill(Color.LIGHTBLUE));
+        termsLabel.setOnMouseExited(e -> termsLabel.setTextFill(Color.WHITE));
+
+        HBox termsContainer = new HBox(10, termsBox, termsLabel);
+        termsContainer.setAlignment(Pos.CENTER);
+
+        // Log In button - triggers login logic kapag kinlik
+        Button loginBtn = new Button("Log In");
+        loginBtn.setFont(Font.font("Segoe UI", 16));
+        loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;");
+        loginBtn.setCursor(javafx.scene.Cursor.HAND);
+        loginBtn.setEffect(new DropShadow());
+
+        // UI hover effect para sa login button
+        loginBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e ->
+                loginBtn.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;"));
+        loginBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e ->
+                loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;"));
+
+        // Login button action - tine-check ang credentials at terms box bago mag-proceed
+        loginBtn.setOnAction(e -> {
+            if (!termsBox.isSelected()) {
+                showAlert(Alert.AlertType.WARNING, "You must agree to the Terms and Conditions.");
+                return;
+            }
+
+            String username = userField.getText().trim();
+            String password = passField.getText();
+            String hashedInput = hashPassword(password);
+
+            if (username.equals(ADMIN_USERNAME) && hashedInput.equals(ADMIN_PASSWORD_HASH)) {
+                showAlert(Alert.AlertType.INFORMATION, "Login successful!");
+                adminStage.close();
+                Stage inventoryStage = new Stage();
+                try {
+                    new CleaningInventory1().start(inventoryStage); // Open inventory page
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Invalid credentials. Try again.");
+            }
+        });
+
+        // Back to Registration label - para makabalik sa registration page
+        Label backToRegister = new Label("Back to Registration");
+        backToRegister.setFont(Font.font("Segoe UI", 14));
+        backToRegister.setTextFill(Color.WHITE);
+        backToRegister.setCursor(javafx.scene.Cursor.HAND);
+        backToRegister.setOnMouseClicked(e -> {
+            adminStage.close();
+            try {
+                new RegistrationPage().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // UI hover effect para sa "Back to Registration" label
+        backToRegister.setOnMouseEntered(e -> backToRegister.setTextFill(Color.LIGHTBLUE));
+        backToRegister.setOnMouseExited(e -> backToRegister.setTextFill(Color.WHITE));
+
+        // Layout assembly - lahat ng UI elements ay nilalagay sa VBox (root)
+        root.getChildren().addAll(
+                titleLabel,
+                roleSelection,
+                userLabel, userField,
+                passLabel, passField,
+                termsContainer,
+                loginBtn,
+                backToRegister
+        );
+
+        // Scene setup - final setup ng window
+        Scene scene = new Scene(root, 800, 600);
+        adminStage.setScene(scene);
+        adminStage.setResizable(false);
+        adminStage.show();
+    }
+
+    // Method to hash password using SHA-256 - para hindi plaintext ang password na tina-try i-login
+    public static String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashedBytes = md.digest(password.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashedBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString(); // ibinabalik ang hashed password
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // Show alert dialog - ginagamit sa success, warning, or error messages
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Login");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    // Show Terms and Conditions content - ito yung lumalabas na popup pag kinlik ang terms
+    private void showTermsAndConditions(CheckBox termsBox) {
+        Alert termsAlert = new Alert(Alert.AlertType.INFORMATION);
+        termsAlert.setTitle("Terms and Conditions");
+        termsAlert.setHeaderText("IMPACT: Inventory Management Platform for All Cleaning Tools");
+        termsAlert.setContentText(
+                "1. Acceptance of Terms\nBy accessing and using the IMPACT LogInPage, you acknowledge and agree to these Terms and Conditions. If you do not agree, you may not proceed with logging in.\n\n" +
+                "2. User Accounts & Authentication\nUsers must provide accurate login credentials. Admin users must use the designated administrator login.\n\n" +
+                "3. Terms of Use\nAccess is granted for authorized personnel only. Any attempt to breach security or manipulate login credentials will result in immediate access restriction.\n\n" +
+                "4. Role Selection & Access Rights\nAdmin Users: Manage inventory and have full access. Student Users: Limited access for viewing inventory-related data.\n\n" +
+                "5. Agreement to Terms and Conditions\nUsers must agree to these terms before logging in.\n\n" +
+                "6. Security & Privacy\nThe platform does not store plaintext passwords. Data is encrypted to maintain confidentiality.\n\n" +
+                "7. Violations & Consequences\nUnauthorized login attempts may result in permanent access revocation.\n\n" +
+                "By logging into IMPACT, you confirm that you have read, understood, and agreed to these terms."
+        );
+
+        termsAlert.showAndWait();
+        termsBox.setSelected(true); // Auto-check ang checkbox after makita ang terms
+    }
+}
