@@ -1,0 +1,299 @@
+// Import statements para sa JavaFX UI components at SQL connectivity
+package default1;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+
+import java.sql.*;
+import java.util.Optional;
+
+// Main class na nag-eextend sa Application para sa JavaFX GUI
+public class CleaningInventory1 extends Application {
+
+    // TableView to display inventory items
+    private TableView<InventoryItem> inventoryTable = new TableView<>();
+
+    // Database connection credentials
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS Test;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    // Entry point ng JavaFX application
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    // Main method ng JavaFX UI
+    @Override
+    public void start(Stage stage) {
+        // Window title at icon setup
+        stage.setTitle("Admin Page");
+        stage.getIcons().add(new Image("file:C:/Users/zcint/Downloads/download (5).png"));
+
+        // Title label sa taas ng window
+        Label titleLabel = new Label("🧼 Admin Page");
+        titleLabel.setFont(Font.font("Segoe UI", 20));
+        titleLabel.setTextFill(Color.DARKBLUE);
+        titleLabel.setPadding(new Insets(15, 0, 10, 0));
+        titleLabel.setMaxWidth(Double.MAX_VALUE);
+        titleLabel.setAlignment(Pos.CENTER);
+
+        // Tawagin ang method para i-setup ang TableView columns
+        setupTable();
+
+        // VBox para sa buttons (layout ng buttons vertically)
+        VBox buttonBox = new VBox(10);
+        buttonBox.setPadding(new Insets(10, 20, 10, 20));
+        buttonBox.setAlignment(Pos.CENTER);
+
+        // Buttons para sa bawat action ng Admin
+        Button listButton = new Button("📋 View Inventory");
+        Button addButton = new Button("➕ Add Item");
+        Button updateButton = new Button("✏️ Update Item");
+        Button deleteButton = new Button("❌ Delete Item");
+        Button lowStockButton = new Button("📉 Low Stock Report");
+        Button logoutButton = new Button("🔒 Log Out");
+
+        // Loop to apply consistent style sa lahat ng buttons
+        for (Button button : new Button[]{listButton, addButton, updateButton, deleteButton, lowStockButton, logoutButton}) {
+            button.setFont(Font.font("Segoe UI", 14));
+            button.setStyle("-fx-background-color: #4682B4; -fx-text-fill: white;");
+            button.setMaxWidth(Double.MAX_VALUE);
+        }
+
+        // Actions for each button
+        listButton.setOnAction(e -> listInventory());       // Ilista lahat ng inventory
+        addButton.setOnAction(e -> addItem());              // Magdagdag ng bagong item
+        updateButton.setOnAction(e -> updateItem());        // I-update ang quantity ng item
+        deleteButton.setOnAction(e -> deleteItem());        // Burahin ang item
+        lowStockButton.setOnAction(e -> lowStockReport());  // Ipakita ang mga mababa ang stock
+
+        // Log out button with confirmation
+        logoutButton.setOnAction(e -> {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Do you want to log out as an Admin?", ButtonType.YES, ButtonType.NO);
+            confirm.setTitle("Log Out Confirmation");
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.YES) {
+                new Alert(Alert.AlertType.INFORMATION, "You have been logged out.").show();
+                stage.close();
+
+                // Magbubukas ng LogInPage ulit
+                Stage loginStage = new Stage();
+                try {
+                    new LogInPage().start(loginStage);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        // Ilagay lahat ng buttons sa VBox
+        buttonBox.getChildren().addAll(listButton, addButton, updateButton, deleteButton, lowStockButton, logoutButton);
+
+        // Layout ng buong window gamit BorderPane
+        BorderPane root = new BorderPane();
+        root.setTop(titleLabel); // Title sa taas
+        root.setCenter(new VBox(new Label("Inventory Details"), inventoryTable)); // TableView sa gitna
+        root.setBottom(buttonBox); // Buttons sa ibaba
+        root.setBackground(new Background(new BackgroundFill(Color.LIGHTBLUE, CornerRadii.EMPTY, Insets.EMPTY)));
+
+        // Setup ng Scene at ipakita ang Stage
+        Scene scene = new Scene(root, 800, 650);
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    // Setup ng TableView columns
+    private void setupTable() {
+        // Columns para sa bawat property ng InventoryItem
+        TableColumn<InventoryItem, String> idCol = new TableColumn<>("Item ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("itemID"));
+        TableColumn<InventoryItem, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        TableColumn<InventoryItem, Integer> qtyCol = new TableColumn<>("Quantity");
+        qtyCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
+        TableColumn<InventoryItem, String> unitCol = new TableColumn<>("Unit");
+        unitCol.setCellValueFactory(new PropertyValueFactory<>("unit"));
+        TableColumn<InventoryItem, String> supplierCol = new TableColumn<>("Supplier");
+        supplierCol.setCellValueFactory(new PropertyValueFactory<>("supplier"));
+
+        // Idagdag lahat ng columns sa TableView
+        inventoryTable.getColumns().addAll(idCol, nameCol, qtyCol, unitCol, supplierCol);
+        inventoryTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        // Placeholder kung wala pang laman ang table
+        inventoryTable.setPlaceholder(new Label("Click 'View Inventory' to display inventory details"));
+    }
+
+    // Method para kunin at ipakita lahat ng items mula database
+    private void listInventory() {
+        inventoryTable.getItems().clear();
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT ItemID, Name, Quantity, Unit, Supplier FROM dbo.inventory")) {
+            while (rs.next()) {
+                inventoryTable.getItems().add(new InventoryItem(
+                        rs.getString("ItemID"),
+                        rs.getString("Name"),
+                        rs.getInt("Quantity"),
+                        rs.getString("Unit"),
+                        rs.getString("Supplier")
+                ));
+            }
+        } catch (SQLException e) {
+            showAlert("Error", e.getMessage());
+        }
+    }
+
+    // Method para mag-add ng bagong item
+    private void addItem() {
+        String name = promptInput("Item Name:");
+        if (name == null) return;
+        String qtyStr = promptInput("Quantity:");
+        if (qtyStr == null) return;
+        String unit = promptInput("Unit:");
+        if (unit == null) return;
+        String supplier = promptInput("Supplier:");
+        if (supplier == null) return;
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            PreparedStatement stmt = conn.prepareStatement("INSERT INTO dbo.inventory (Name, Quantity, Unit, Supplier) VALUES (?, ?, ?, ?)");
+            stmt.setString(1, name);
+            stmt.setInt(2, Integer.parseInt(qtyStr));
+            stmt.setString(3, unit);
+            stmt.setString(4, supplier);
+            stmt.executeUpdate();
+            showAlert("Success", "Item added!");
+            listInventory(); // Refresh ang table
+        } catch (SQLException | NumberFormatException e) {
+            showAlert("Error", e.getMessage());
+        }
+    }
+
+    // Method para i-update ang quantity ng existing item
+    private void updateItem() {
+        String id = promptInput("Enter Item ID to update:");
+        if (id == null) return;
+        String newQty = promptInput("New Quantity:");
+        if (newQty == null) return;
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            // I-check kung existing ang item ID
+            PreparedStatement check = conn.prepareStatement("SELECT COUNT(*) FROM dbo.inventory WHERE ItemID = ?");
+            check.setString(1, id);
+            ResultSet rs = check.executeQuery();
+            if (rs.next() && rs.getInt(1) == 0) {
+                showAlert("Error", "Item ID not found.");
+                return;
+            }
+
+            // I-update ang quantity
+            PreparedStatement stmt = conn.prepareStatement("UPDATE dbo.inventory SET Quantity = ? WHERE ItemID = ?");
+            stmt.setInt(1, Integer.parseInt(newQty));
+            stmt.setString(2, id);
+            stmt.executeUpdate();
+            showAlert("Success", "Item updated!");
+            listInventory(); // Refresh table
+        } catch (SQLException | NumberFormatException e) {
+            showAlert("Error", e.getMessage());
+        }
+    }
+
+    // Method para mag-delete ng item
+    private void deleteItem() {
+        String id = promptInput("Enter Item ID to delete:");
+        if (id == null) return;
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            // I-check muna kung existing ang item
+            PreparedStatement check = conn.prepareStatement("SELECT COUNT(*) FROM dbo.inventory WHERE ItemID = ?");
+            check.setString(1, id);
+            ResultSet rs = check.executeQuery();
+            if (rs.next() && rs.getInt(1) == 0) {
+                showAlert("Error", "Item ID not found.");
+                return;
+            }
+
+            // Burahin ang item
+            PreparedStatement stmt = conn.prepareStatement("DELETE FROM dbo.inventory WHERE ItemID = ?");
+            stmt.setString(1, id);
+            stmt.executeUpdate();
+            showAlert("Success", "Item deleted!");
+            listInventory();
+        } catch (SQLException e) {
+            showAlert("Error", e.getMessage());
+        }
+    }
+
+    // Method para ipakita ang mga items na mababa ang stock (less than 5)
+    private void lowStockReport() {
+        StringBuilder result = new StringBuilder("📉 Low Stock Items:\n\n");
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT ItemID, Name, Quantity FROM dbo.inventory WHERE Quantity < 5")) {
+            while (rs.next()) {
+                result.append("ID: ").append(rs.getString("ItemID"))
+                        .append(" | Name: ").append(rs.getString("Name"))
+                        .append(" | Qty: ").append(rs.getInt("Quantity"))
+                        .append("\n");
+            }
+        } catch (SQLException e) {
+            result.append("Error: ").append(e.getMessage());
+        }
+
+        showAlert("Low Stock Report", result.toString());
+    }
+
+    // Utility method para magpakita ng alert dialogs
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    // Utility method para mag prompt ng input
+    private String promptInput(String prompt) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle(prompt);
+        dialog.setHeaderText(null);
+        dialog.setContentText(prompt);
+        Optional<String> result = dialog.showAndWait();
+        return result.filter(s -> !s.trim().isEmpty()).orElse(null);
+    }
+
+    // Inner class to represent inventory items
+    public static class InventoryItem {
+        private String itemID;
+        private String name;
+        private int quantity;
+        private String unit;
+        private String supplier;
+
+        public InventoryItem(String itemID, String name, int quantity, String unit, String supplier) {
+            this.itemID = itemID;
+            this.name = name;
+            this.quantity = quantity;
+            this.unit = unit;
+            this.supplier = supplier;
+        }
+
+        // Getters para sa data binding ng TableView
+        public String getItemID() { return itemID; }
+        public String getName() { return name; }
+        public int getQuantity() { return quantity; }
+        public String getUnit() { return unit; }
+        public String getSupplier() { return supplier; }
+    }
+}
