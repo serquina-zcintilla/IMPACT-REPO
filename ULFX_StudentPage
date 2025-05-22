@@ -22,12 +22,11 @@ public class StudentPage extends Application {
     private static final String PASSWORD = "Christian";
     private static String currentStudentId;
 
-    private TableView<Item> tableView;
-
-    public static void launchWithStudentId(String studentId) {
+    public static void setStudentId(String studentId) {
         currentStudentId = studentId;
-        new Thread(() -> Application.launch(StudentPage.class)).start();
     }
+
+    private TableView<Item> tableView;
 
     @Override
     public void start(Stage primaryStage) {
@@ -39,7 +38,6 @@ public class StudentPage extends Application {
             System.out.println("Icon not found or failed to load.");
         }
 
-        // Sidebar with buttons
         VBox sidebar = new VBox(15);
         sidebar.setPadding(new Insets(20));
         sidebar.setPrefWidth(200);
@@ -56,7 +54,6 @@ public class StudentPage extends Application {
 
         sidebar.getChildren().addAll(sidebarTitle, viewButton, borrowButton, returnButton, logoutButton);
 
-        // Header
         Label titleLabel = new Label("Student Dashboard");
         titleLabel.setFont(Font.font("Segoe UI", 28));
         titleLabel.setTextFill(Color.web("#006699"));
@@ -64,7 +61,6 @@ public class StudentPage extends Application {
         header.setPadding(new Insets(20));
         header.setAlignment(Pos.CENTER_LEFT);
 
-        // Table setup
         tableView = new TableView<>();
         tableView.setPlaceholder(new Label("Click 'View Tools' to display inventory."));
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -91,7 +87,6 @@ public class StudentPage extends Application {
         root.setLeft(sidebar);
         root.setCenter(contentBox);
 
-        // Button actions
         viewButton.setOnAction(e -> displayInventory());
         borrowButton.setOnAction(e -> borrowTool());
         returnButton.setOnAction(e -> returnTool());
@@ -150,6 +145,11 @@ public class StudentPage extends Application {
     }
 
     private void borrowTool() {
+        if (currentStudentId == null) {
+            showError("Student ID is not set. Please log in again.");
+            return;
+        }
+
         TextInputDialog itemDialog = new TextInputDialog();
         itemDialog.setTitle("Borrow Tool");
         itemDialog.setContentText("Enter Item ID:");
@@ -186,11 +186,20 @@ public class StudentPage extends Application {
                 updateStmt.setInt(2, itemId);
                 updateStmt.executeUpdate();
 
-                PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO dbo.borrow (StudentID, ItemID, Quantity) VALUES (?, ?, ?)");
-                insertStmt.setString(1, currentStudentId);
-                insertStmt.setInt(2, itemId);
-                insertStmt.setInt(3, qty);
-                insertStmt.executeUpdate();
+                // SQL Server-compatible MERGE statement
+                PreparedStatement mergeStmt = conn.prepareStatement(
+                    "MERGE dbo.borrowed_tools AS target " +
+                    "USING (SELECT ? AS StudentID, ? AS ItemID, ? AS Quantity) AS source " +
+                    "ON (target.StudentID = source.StudentID AND target.ItemID = source.ItemID) " +
+                    "WHEN MATCHED THEN " +
+                    "   UPDATE SET Quantity = target.Quantity + source.Quantity " +
+                    "WHEN NOT MATCHED THEN " +
+                    "   INSERT (StudentID, ItemID, Quantity) VALUES (source.StudentID, source.ItemID, source.Quantity);"
+                );
+                mergeStmt.setString(1, currentStudentId);
+                mergeStmt.setInt(2, itemId);
+                mergeStmt.setInt(3, qty);
+                mergeStmt.executeUpdate();
 
                 conn.commit();
                 displayInventory();
@@ -206,6 +215,11 @@ public class StudentPage extends Application {
     }
 
     private void returnTool() {
+        if (currentStudentId == null) {
+            showError("Student ID is not set. Please log in again.");
+            return;
+        }
+
         TextInputDialog itemDialog = new TextInputDialog();
         itemDialog.setTitle("Return Tool");
         itemDialog.setContentText("Enter Item ID to return:");
@@ -227,7 +241,7 @@ public class StudentPage extends Application {
             try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
                 conn.setAutoCommit(false);
 
-                PreparedStatement checkStmt = conn.prepareStatement("SELECT Quantity FROM dbo.borrow WHERE StudentID = ? AND ItemID = ?");
+                PreparedStatement checkStmt = conn.prepareStatement("SELECT Quantity FROM dbo.borrowed_tools WHERE StudentID = ? AND ItemID = ?");
                 checkStmt.setString(1, currentStudentId);
                 checkStmt.setInt(2, itemId);
                 ResultSet rs = checkStmt.executeQuery();
@@ -246,12 +260,12 @@ public class StudentPage extends Application {
                 }
 
                 if (qtyToReturn == borrowedQty) {
-                    PreparedStatement deleteStmt = conn.prepareStatement("DELETE FROM dbo.borrow WHERE StudentID = ? AND ItemID = ?");
+                    PreparedStatement deleteStmt = conn.prepareStatement("DELETE FROM dbo.borrowed_tools WHERE StudentID = ? AND ItemID = ?");
                     deleteStmt.setString(1, currentStudentId);
                     deleteStmt.setInt(2, itemId);
                     deleteStmt.executeUpdate();
                 } else {
-                    PreparedStatement updateBorrowStmt = conn.prepareStatement("UPDATE dbo.borrow SET Quantity = Quantity - ? WHERE StudentID = ? AND ItemID = ?");
+                    PreparedStatement updateBorrowStmt = conn.prepareStatement("UPDATE dbo.borrowed_tools SET Quantity = Quantity - ? WHERE StudentID = ? AND ItemID = ?");
                     updateBorrowStmt.setInt(1, qtyToReturn);
                     updateBorrowStmt.setString(2, currentStudentId);
                     updateBorrowStmt.setInt(3, itemId);
@@ -310,10 +324,7 @@ public class StudentPage extends Application {
     }
 
     public static void main(String[] args) {
+        setStudentId("S001"); // Replace with actual login student ID
         launch(args);
-    }
-
-    public void setStudentId(String idNumber) {
-        // Not used in current logic
     }
 }
