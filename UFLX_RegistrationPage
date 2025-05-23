@@ -46,9 +46,9 @@ public class RegistrationPage extends Application {
         // Root layout using BorderPane para may left at center na layout
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(30));
-        root.setStyle("-fx-background-color: #003366;"); // Set background color
+        root.setStyle("-fx-background-color: #003366;");
 
-        // LEFT SECTION: logo, title, login prompt, back button
+        // LEFT SECTION: logo, title, login prompt, back button 
         VBox leftSection = new VBox(20);
         leftSection.setAlignment(Pos.TOP_LEFT);
         leftSection.setPadding(new Insets(30, 20, 50, 30));
@@ -92,7 +92,7 @@ public class RegistrationPage extends Application {
         backButton.setStyle("-fx-background-color: transparent; -fx-text-fill: white;");
         backButton.setCursor(Cursor.HAND);
 
-        // Hover effects at on-click event to redirect to WelcomePage
+        // Hover effects sa back button for redirecting to WelcomePage
         backButton.setOnMouseEntered(e -> backButton.setStyle("-fx-background-color: #004080; -fx-text-fill: white;"));
         backButton.setOnMouseExited(e -> backButton.setStyle("-fx-background-color: transparent; -fx-text-fill: white;"));
         backButton.setOnAction(e -> {
@@ -118,7 +118,7 @@ public class RegistrationPage extends Application {
         registerText.setFont(Font.font("Segoe UI", 20));
         registerText.setTextFill(Color.BLACK);
 
-        // dito nakalagay yung mga input fields
+        // Dito nakalagay yung mga input fields ni user
         TextField fullNameField = createTextField("Full Name");
         TextField idNumberField = createTextField("ID Number");
         PasswordField passwordField = createPasswordField("Password");
