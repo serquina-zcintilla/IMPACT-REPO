@@ -1,163 +1,231 @@
-// log In Page
 package default1;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.sql.*;
+import javafx.application.Application; 
+import javafx.geometry.*;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.*;
+import javafx.scene.paint.*;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
 
-public class LogInPage {
-	 private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=LMS_TST;encrypt=true;trustServerCertificate=true";
-	 private static final String USER = "LMS_ADMIN";
-	 private static final String PASSWORD = "Zcintilla1005";
-	    
-    // admin fixed account (Sir Nelson)
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+public class LogInPage extends Application {
+
+    // Constant credentials para sa admin (nakahash ang password for security)
     private static final String ADMIN_USERNAME = "admin";
-    private static final String ADMIN_PASSWORD = "admin123";
+    private static final String ADMIN_PASSWORD_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
 
+    // Main method para i-launch ang JavaFX app
     public static void main(String[] args) {
-        JFrame loginFrame = new JFrame("Log In");
-        loginFrame.setSize(800, 600);
-        loginFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        
-        ImageIcon icon = new ImageIcon("C:\\Users\\zcint\\Downloads\\download (5).png");
-        loginFrame.setIconImage(icon.getImage());
-
-        JPanel panel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2d = (Graphics2D) g;
-                GradientPaint gradient = new GradientPaint(0, 0, new Color(0, 51, 102), getWidth(), getHeight(), new Color(0, 102, 204));
-                g2d.setPaint(gradient);
-                g2d.fillRect(0, 0, getWidth(), getHeight());
-            }
-        };
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-
-        JLabel titleLabel = new JLabel("Log In to Your Account");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        titleLabel.setForeground(Color.WHITE);
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // admin Username
-        JLabel adminLabel = new JLabel("Username (Admin Only)");
-        adminLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        adminLabel.setForeground(Color.WHITE);
-        adminLabel.setAlignmentX(Component.CENTER_ALIGNMENT); // Center the label
-        JTextField adminField = new JTextField();
-        adminField.setMaximumSize(new Dimension(300, 30));
-        adminField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        adminField.setAlignmentX(Component.CENTER_ALIGNMENT); // Center the text field
-
-        // iD Number
-        JLabel idNumberLabel = new JLabel("ID Number (Student Only)");
-        idNumberLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        idNumberLabel.setForeground(Color.WHITE);
-        idNumberLabel.setAlignmentX(Component.CENTER_ALIGNMENT); // Center the label
-        JTextField idNumberField = new JTextField();
-        idNumberField.setMaximumSize(new Dimension(300, 30));
-        idNumberField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        idNumberField.setAlignmentX(Component.CENTER_ALIGNMENT); // Center the text field
-
-        // password
-        JLabel passwordLabel = new JLabel("Password:");
-        passwordLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        passwordLabel.setForeground(Color.WHITE);
-        passwordLabel.setAlignmentX(Component.CENTER_ALIGNMENT); // Center the label
-        JPasswordField passwordField = new JPasswordField();
-        passwordField.setMaximumSize(new Dimension(300, 30));
-        passwordField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        passwordField.setAlignmentX(Component.CENTER_ALIGNMENT); // Center the text field
-
-        // log In Button
-        JButton loginButton = new JButton("Log In");
-        loginButton.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        loginButton.setBackground(Color.WHITE);
-        loginButton.setForeground(new Color(51, 0, 102));
-        loginButton.setFocusPainted(false);
-        loginButton.setAlignmentX(Component.CENTER_ALIGNMENT); // Center the button
-
-        loginButton.addActionListener((ActionEvent e) -> {
-            String adminUsername = adminField.getText();
-            String idNumber = idNumberField.getText();
-            String password = new String(passwordField.getPassword());
-
-            // check if any field is empty
-            if (password.isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Please fill out all fields.");
-            } else {
-                // if admin credentials are entered, validate the admin (skip ID Number for admin)
-                if (validateAdmin(adminUsername, password)) {
-                    JOptionPane.showMessageDialog(null, "Welcome Admin!");
-                    loginFrame.dispose();
-                    CleaningInventory.main(new String[]{}); // Admin Dashboard
-                } else {
-                    // for non-admin users, validate ID number and password
-                    if (validateCredentials(idNumber, password)) {
-                        JOptionPane.showMessageDialog(null, "Welcome User!");
-                        loginFrame.dispose();
-                        StudentPage.main(new String[]{}); // Normal user login
-                    } else {
-                        JOptionPane.showMessageDialog(null, "Invalid credentials. Please try again.");
-                    }
-                }
-            }
-        });
-
-        loginButton.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                loginButton.setBackground(new Color(229, 204, 255));
-            }
-
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                loginButton.setBackground(Color.WHITE);
-            }
-        });
-
-        // Add components to the panel
-        panel.add(Box.createVerticalGlue());
-        panel.add(titleLabel);
-        panel.add(Box.createRigidArea(new Dimension(0, 20)));
-
-        panel.add(adminLabel);
-        panel.add(adminField);
-        panel.add(Box.createRigidArea(new Dimension(0, 10)));
-
-        panel.add(idNumberLabel);
-        panel.add(idNumberField);
-        panel.add(Box.createRigidArea(new Dimension(0, 10)));
-
-        panel.add(passwordLabel);
-        panel.add(passwordField);
-        panel.add(Box.createRigidArea(new Dimension(0, 20)));
-
-        panel.add(loginButton);
-        panel.add(Box.createVerticalGlue());
-
-        loginFrame.add(panel);
-        loginFrame.setLocationRelativeTo(null);
-        loginFrame.setVisible(true);
+        launch(args);
     }
 
-    private static boolean validateCredentials(String idNumber, String password) {
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
-            String query = "SELECT * FROM dbo.users WHERE id_number = ? AND password = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(query)) {
-                stmt.setString(1, idNumber);
-                stmt.setString(2, password);
+    // start method para i-setup ang GUI ng login window
+    @Override
+    public void start(Stage adminStage) {
+        adminStage.setTitle("Admin Login"); // Title ng window
 
-                try (ResultSet rs = stmt.executeQuery()) {
-                    return rs.next(); // Returns true if user credentials are found
-                }
-            }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+        // Try to load custom icon ng window
+        try {
+            adminStage.getIcons().add(new Image("file:///C:\\Users\\chris\\Downloads\\u_logo.jpg"));
+        } catch (Exception e) {
+            System.out.println("Icon not found or failed to load.");
         }
-        return false;
+
+        // Gumagawa ng background gradient color
+        Stop[] stops = new Stop[]{
+                new Stop(0, Color.web("#003366")),
+                new Stop(1, Color.web("#0066CC"))
+        };
+        LinearGradient gradient = new LinearGradient(0, 0, 1, 1, true, CycleMethod.NO_CYCLE, stops);
+
+        // Main layout container na naka-vertical stacking ng elements
+        VBox root = new VBox(20); 
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(40));
+        root.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
+
+        // Title label ng login page
+        Label titleLabel = new Label("ADMIN LOG IN HERE");
+        titleLabel.setFont(Font.font("Segoe UI", 30));
+        titleLabel.setTextFill(Color.WHITE);
+
+        // Role selection section (Admin or Student)
+        HBox roleSelection = new HBox(10);
+        roleSelection.setAlignment(Pos.CENTER);
+        ToggleGroup roleGroup = new ToggleGroup();
+        RadioButton adminRadio = new RadioButton("Admin");
+        adminRadio.setFont(Font.font("Segoe UI", 16));
+        adminRadio.setTextFill(Color.WHITE);
+        adminRadio.setToggleGroup(roleGroup);
+        adminRadio.setSelected(true);
+
+        RadioButton studentRadio = new RadioButton("Student");
+        studentRadio.setFont(Font.font("Segoe UI", 16));
+        studentRadio.setTextFill(Color.WHITE);
+        studentRadio.setToggleGroup(roleGroup);
+        roleSelection.getChildren().addAll(adminRadio, studentRadio);
+
+        // Kapag pinili ang "Student", mag-oopen ng bagong login window para sa students
+        studentRadio.setOnAction(e -> {
+            adminStage.close();
+            try {
+                new StudentLogInPage().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // Username label and input field
+        Label userLabel = new Label("Username:");
+        userLabel.setFont(Font.font("Segoe UI", 16));
+        userLabel.setTextFill(Color.WHITE);
+        TextField userField = new TextField();
+        userField.setMaxWidth(300);
+        userField.setFont(Font.font("Segoe UI", 16));
+
+        // Password label and input field (nakasecure gamit PasswordField)
+        Label passLabel = new Label("Password:");
+        passLabel.setFont(Font.font("Segoe UI", 16));
+        passLabel.setTextFill(Color.WHITE);
+        PasswordField passField = new PasswordField();
+        passField.setMaxWidth(300);
+        passField.setFont(Font.font("Segoe UI", 16));
+
+        // Checkbox para sa Terms and Conditions + clickable label
+        CheckBox termsBox = new CheckBox();
+        Label termsLabel = new Label("I agree to the Terms and Conditions");
+        termsLabel.setFont(Font.font("Segoe UI", 14));
+        termsLabel.setTextFill(Color.WHITE);
+        termsLabel.setCursor(javafx.scene.Cursor.HAND);
+        termsLabel.setOnMouseClicked(e -> showTermsAndConditions(termsBox));
+        termsLabel.setOnMouseEntered(e -> termsLabel.setTextFill(Color.LIGHTBLUE));
+        termsLabel.setOnMouseExited(e -> termsLabel.setTextFill(Color.WHITE));
+
+        // I-container ang checkbox at label
+        HBox termsContainer = new HBox(10, termsBox, termsLabel);
+        termsContainer.setAlignment(Pos.CENTER);
+
+        // Button para mag-login + hover effects
+        Button loginBtn = new Button("Log In");
+        loginBtn.setFont(Font.font("Segoe UI", 16));
+        loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;");
+        loginBtn.setCursor(javafx.scene.Cursor.HAND);
+        loginBtn.setEffect(new DropShadow());
+
+        loginBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e ->
+                loginBtn.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;"));
+        loginBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e ->
+                loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;"));
+
+        // Kapag pinindot ang login button, iche-check ang credentials
+        loginBtn.setOnAction(e -> {
+            if (!termsBox.isSelected()) {
+                showAlert(Alert.AlertType.WARNING, "You must agree to the Terms and Conditions.");
+                return;
+            }
+
+            String username = userField.getText().trim();
+            String password = passField.getText();
+            String hashedInput = hashPassword(password);
+
+            // I-validate kung admin credentials ang pumasok
+            if (username.equals(ADMIN_USERNAME) && hashedInput.equals(ADMIN_PASSWORD_HASH)) {
+                showAlert(Alert.AlertType.INFORMATION, "Login successful!");
+                adminStage.close();
+                Stage inventoryStage = new Stage();
+                try {
+                    new CleaningInventory1().start(inventoryStage); // Punta sa main inventory system
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Invalid credentials. Try again.");
+            }
+        });
+
+        // Label para bumalik sa Registration Page
+        Label backToRegister = new Label("Back to Registration");
+        backToRegister.setFont(Font.font("Segoe UI", 14));
+        backToRegister.setTextFill(Color.WHITE);
+        backToRegister.setCursor(javafx.scene.Cursor.HAND);
+        backToRegister.setOnMouseClicked(e -> {
+            adminStage.close();
+            try {
+                new RegistrationPage().start(new Stage()); // Open registration page
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // Hover effects sa registration label
+        backToRegister.setOnMouseEntered(e -> backToRegister.setTextFill(Color.LIGHTBLUE));
+        backToRegister.setOnMouseExited(e -> backToRegister.setTextFill(Color.WHITE));
+
+        root.getChildren().addAll(
+                titleLabel,
+                roleSelection,
+                userLabel, userField,
+                passLabel, passField,
+                termsContainer,
+                loginBtn,
+                backToRegister
+        );
+
+        // Scene setup at pagpapakita ng stage
+        Scene scene = new Scene(root, 800, 600);
+        adminStage.setScene(scene);
+        adminStage.setResizable(false);
+        adminStage.show();
     }
 
-    private static boolean validateAdmin(String adminUsername, String password) {
-        return ADMIN_USERNAME.equals(adminUsername) && ADMIN_PASSWORD.equals(password);
+    // Method para i-hash ang password gamit SHA-256 algorithm
+    public static String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashedBytes = md.digest(password.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashedBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // Method para magpakita ng alert messages (info, warning, error)
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Login");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    // Method para ipakita ang Terms and Conditions sa isang alert box
+    private void showTermsAndConditions(CheckBox termsBox) {
+        Alert termsAlert = new Alert(Alert.AlertType.INFORMATION);
+        termsAlert.setTitle("Terms and Conditions");
+        termsAlert.setHeaderText("IMPACT: Inventory Management Platform for All Cleaning Tools");
+        termsAlert.setContentText(
+                "1. Acceptance of Terms\nBy accessing and using the IMPACT LogInPage, you acknowledge and agree to these Terms and Conditions. If you do not agree, you may not proceed with logging in.\n\n" +
+                "2. User Accounts & Authentication\nUsers must provide accurate login credentials. Admin users must use the designated administrator login.\n\n" +
+                "3. Terms of Use\nAccess is granted for authorized personnel only. Any attempt to breach security or manipulate login credentials will result in immediate access restriction.\n\n" +
+                "4. Role Selection & Access Rights\nAdmin Users: Manage inventory and have full access. Student Users: Limited access for viewing inventory-related data.\n\n" +
+                "5. Agreement to Terms and Conditions\nUsers must agree to these terms before logging in.\n\n" +
+                "6. Security & Privacy\nThe platform does not store plaintext passwords. Data is encrypted to maintain confidentiality.\n\n" +
+                "7. Violations & Consequences\nUnauthorized login attempts may result in permanent access revocation.\n\n" +
+                "By logging into IMPACT, you confirm that you have read, understood, and agreed to these terms."
+        );
+
+        termsAlert.showAndWait();
+        termsBox.setSelected(true); // Auto-check kapag nabasa na
     }
 }

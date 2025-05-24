@@ -1,108 +1,134 @@
-// Welcome Page
 package default1;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
+// Nag-iimport ng mga JavaFX classes na kailangan para sa GUI application
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.stage.Stage;
 
-public class WelcomePage {
+// Main class na nag-eextend sa Application para magamit ang JavaFX lifecycle
+public class WelcomePage extends Application {
+
+    // Ito ang main entry point ng JavaFX application
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("WELCOME TO I.M.P.A.C.T"); // Title ng window
+
+        // Try-catch block para mag-load ng custom na icon sa application
+        try {
+            primaryStage.getIcons().add(new Image("file:///C:\\Users\\chris\\Downloads\\u_logo.jpg"));
+        } catch (Exception e) {
+            System.out.println("Icon not found or failed to load.");
+        }
+
+        // UI para sa Top Navigation Bar
+        HBox navBar = new HBox(); // Gumagawa ng horizontal container
+        navBar.setStyle("-fx-background-color: white;"); // White na background
+        navBar.setAlignment(Pos.CENTER_LEFT); // Align sa kaliwa ang laman
+        navBar.setPadding(new Insets(0, 0, 0, 30)); // Padding sa kaliwang side
+        navBar.setPrefHeight(60); // Fix height ng nav bar
+        navBar.setBorder(new Border(new BorderStroke(Color.LIGHTGRAY,
+            BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderWidths.DEFAULT))); // Light gray border
+
+        // Label para sa pangalan ng app sa nav bar
+        Label appNameLabel = new Label("I.M.P.A.C.T");
+        appNameLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #003366;");
+        navBar.getChildren().add(appNameLabel); // Dinadagdag ang label sa nav bar
+
+        // Main container sa gitna ng screen
+        StackPane centerPane = new StackPane();
+        centerPane.setStyle("-fx-background-color: linear-gradient(to bottom right, #003366, #0066cc);");
+
+        // VBox para sa laman ng gitna (nakastack vertically)
+        VBox contentBox = new VBox(25); // Vertical spacing na 25px
+        contentBox.setAlignment(Pos.CENTER); // Center ang content
+        contentBox.setPadding(new Insets(30)); // May padding sa loob
+
+        // Welcome label
+        Label welcomeLabel = new Label("WELCOME TO I.M.P.A.C.T");
+        welcomeLabel.setStyle("-fx-font-size: 38px; -fx-font-weight: bold; -fx-text-fill: white;");
+        welcomeLabel.setEffect(new DropShadow(5, Color.BLACK)); // May shadow effect para standout
+
+        // Tagline label
+        Label taglineLabel = new Label("\"Where efficiency meets accuracy\"");
+        taglineLabel.setStyle("-fx-font-size: 20px; -fx-font-style: italic; -fx-text-fill: white;");
+
+        // "Get Started" button
+        Button getStartedButton = new Button("Get Started →");
+        getStartedButton.setStyle("""
+            -fx-font-size: 16px;
+            -fx-font-weight: bold;
+            -fx-background-radius: 30;
+            -fx-background-color: linear-gradient(to right, #ffffff, #e6f0ff);
+            -fx-text-fill: #003366;
+            -fx-padding: 10 25 10 25;
+            -fx-border-color: #003366;
+            -fx-border-width: 1px;
+            -fx-border-radius: 30;
+        """);
+
+        // Pag-hover ng mouse: papalitan ang style para may hover effect
+        getStartedButton.setOnMouseEntered(e -> getStartedButton.setStyle("""
+            -fx-font-size: 16px;
+            -fx-font-weight: bold;
+            -fx-background-radius: 30;
+            -fx-background-color: #cce5ff;
+            -fx-text-fill: #003366;
+            -fx-padding: 10 25 10 25;
+            -fx-border-color: #003366;
+            -fx-border-width: 1px;
+            -fx-border-radius: 30;
+        """));
+
+        // Pag umalis ang mouse: ibabalik sa original style
+        getStartedButton.setOnMouseExited(e -> getStartedButton.setStyle("""
+            -fx-font-size: 16px;
+            -fx-font-weight: bold;
+            -fx-background-radius: 30;
+            -fx-background-color: linear-gradient(to right, #ffffff, #e6f0ff);
+            -fx-text-fill: #003366;
+            -fx-padding: 10 25 10 25;
+            -fx-border-color: #003366;
+            -fx-border-width: 1px;
+            -fx-border-radius: 30;
+        """));
+
+        // Kapag pinindot ang button, magna-navigate sa Registration Page
+        getStartedButton.setOnAction(e -> {
+            System.out.println("Navigating to Registration Page...");
+            try {
+                new RegistrationPage().start(new Stage()); // Buksan ang bagong window
+                primaryStage.close(); // Isara ang current window
+            } catch (Exception ex) {
+                ex.printStackTrace(); // Kung may error, ipakita sa console
+            }
+        });
+
+        // Idadagdag ang welcome label, tagline, at button sa VBox
+        contentBox.getChildren().addAll(welcomeLabel, taglineLabel, getStartedButton);
+        // At ilalagay ang VBox sa gitna ng StackPane
+        centerPane.getChildren().add(contentBox);
+
+        // Main layout using BorderPane (top and center only)
+        BorderPane root = new BorderPane();
+        root.setTop(navBar); // Top nav bar
+        root.setCenter(centerPane); // Center content
+
+        // Setup ng scene at window size
+        Scene scene = new Scene(root, 900, 600);
+        primaryStage.setScene(scene); // Iset ang scene sa stage
+        primaryStage.show(); // Ipakita ang window
+    }
+
+    // Main method para i-launch ang JavaFX app
     public static void main(String[] args) {
- 
-        // Create the frame
-        JFrame welcomeFrame = new JFrame("Welcome to I.M.P.A.C.T");
-        welcomeFrame.setSize(800, 600);
-        welcomeFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        welcomeFrame.setLayout(new BorderLayout()); // Use BorderLayout
-       
-        ImageIcon icon = new ImageIcon("C:\\Users\\zcint\\Downloads\\download (5).png");
-        welcomeFrame.setIconImage(icon.getImage());
-
-        // ===== Top Navigation Bar =====
-        JPanel navBar = new JPanel();
-        navBar.setBackground(Color.WHITE);
-        navBar.setLayout(new FlowLayout(FlowLayout.LEFT));
-
-        JLabel appNameLabel = new JLabel("I.M.P.A.C.T");
-        appNameLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        appNameLabel.setForeground(new Color(0, 51, 102));
-
-        navBar.add(Box.createRigidArea(new Dimension(20, 0))); // Margin on the left
-        navBar.add(appNameLabel);
-
-        welcomeFrame.add(navBar, BorderLayout.NORTH);
-
-        // ===== Center Gradient Panel =====
-        JPanel panel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2d = (Graphics2D) g;
-                GradientPaint gradient = new GradientPaint(0, 0, new Color(0, 51, 102),
-                        getWidth(), getHeight(), new Color(0, 102, 204));
-                g2d.setPaint(gradient);
-                g2d.fillRect(0, 0, getWidth(), getHeight());
-
-                // Optional: draw small dots (background pattern)
-                g2d.setColor(new Color(255, 255, 255, 80)); // White with transparency
-                int dotSize = 6;
-                int gap = 30;
-                for (int y = 50; y < getHeight(); y += gap) {
-                    for (int x = 50; x < getWidth(); x += gap) {
-                        g2d.fillOval(x, y, dotSize, dotSize);
-                    }
-                }
-            }
-        };
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS)); // Stack vertically
-
-        // Welcome message
-        JLabel welcomeLabel = new JLabel("WELCOME TO I.M.P.A.C.T", JLabel.CENTER);
-        welcomeLabel.setFont(new Font("Segoe UI", Font.BOLD, 36));
-        welcomeLabel.setForeground(Color.WHITE);
-        welcomeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // Tag line
-        JLabel taglineLabel = new JLabel("\"Where efficiency meets accuracy\"", JLabel.CENTER);
-        taglineLabel.setFont(new Font("Segoe UI", Font.ITALIC, 20));
-        taglineLabel.setForeground(Color.WHITE);
-        taglineLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // Get Started Button
-        JButton getStartedButton = new JButton("Get started →");
-        getStartedButton.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        getStartedButton.setBackground(Color.WHITE);
-        getStartedButton.setForeground(new Color(0, 51, 102));
-        getStartedButton.setFocusPainted(false);
-        getStartedButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        getStartedButton.addActionListener((ActionEvent e) -> {
-            welcomeFrame.dispose(); // Close welcome window
-            RegistrationPage.main(null); // Navigate to next page
-        });
-
-        // Hover effect for button
-        getStartedButton.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                getStartedButton.setBackground(new Color(204, 229, 255));
-            }
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                getStartedButton.setBackground(Color.WHITE);
-            }
-        });
-
-        // Add components to center panel
-        panel.add(Box.createVerticalGlue());
-        panel.add(welcomeLabel);
-        panel.add(Box.createRigidArea(new Dimension(0, 20)));
-        panel.add(taglineLabel);
-        panel.add(Box.createRigidArea(new Dimension(0, 50)));
-        panel.add(getStartedButton);
-        panel.add(Box.createVerticalGlue());
-
-        welcomeFrame.add(panel, BorderLayout.CENTER);
-
-        // Show frame
-        welcomeFrame.setLocationRelativeTo(null); // Center on screen
-        welcomeFrame.setVisible(true);
+        launch(args);
     }
 }
