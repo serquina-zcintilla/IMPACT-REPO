@@ -40,7 +40,7 @@ public class StudentPage extends Application {
 
         // Try to load icon image for the window
         try {
-            primaryStage.getIcons().add(new Image("file:///C:\\Users\\chris\\Downloads\\u_logo.jpg"));
+            primaryStage.getIcons().add(new Image("file:///C:\\Users\\chris\\Downloads\\IMPACT LOGO.jpg"));
         } catch (Exception e) {
             System.out.println("Icon not found or failed to load.");
         }
@@ -116,6 +116,7 @@ public class StudentPage extends Application {
             alert.setContentText("Are you sure you want to log out?");
             alert.showAndWait().ifPresent(response -> {
                 if (response == ButtonType.OK) {
+                    closeDatabaseConnection(); // Log the successful DB close
                     primaryStage.close();
                     javafx.application.Platform.runLater(() -> {
                         try {
@@ -152,7 +153,6 @@ public class StudentPage extends Application {
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
 
-            // Loop through result set at i-store sa observable list
             while (rs.next()) {
                 data.add(new Item(
                         rs.getInt("ID"),
@@ -175,7 +175,6 @@ public class StudentPage extends Application {
             return;
         }
 
-        // Prompt user for Item ID and Quantity
         TextInputDialog itemDialog = new TextInputDialog();
         itemDialog.setTitle("Borrow Tool");
         itemDialog.setContentText("Enter Item ID:");
@@ -194,11 +193,9 @@ public class StudentPage extends Application {
             int itemId = Integer.parseInt(itemIdStr);
             int qty = Integer.parseInt(qtyStr);
 
-            // Database transaction to update inventory and borrowed_tools
             try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
                 conn.setAutoCommit(false);
 
-                // Check kung may sapat na quantity
                 PreparedStatement checkStmt = conn.prepareStatement("SELECT Quantity FROM dbo.inventory WHERE ItemID = ?");
                 checkStmt.setInt(1, itemId);
                 ResultSet rs = checkStmt.executeQuery();
@@ -209,13 +206,11 @@ public class StudentPage extends Application {
                     return;
                 }
 
-                // Update inventory (babawasan)
                 PreparedStatement updateStmt = conn.prepareStatement("UPDATE dbo.inventory SET Quantity = Quantity - ? WHERE ItemID = ?");
                 updateStmt.setInt(1, qty);
                 updateStmt.setInt(2, itemId);
                 updateStmt.executeUpdate();
 
-                // Update borrowed_tools using SQL MERGE para insert or update
                 PreparedStatement mergeStmt = conn.prepareStatement(
                     "MERGE dbo.borrowed_tools AS target " +
                     "USING (SELECT ? AS StudentID, ? AS ItemID, ? AS Quantity) AS source " +
@@ -230,7 +225,6 @@ public class StudentPage extends Application {
                 mergeStmt.setInt(3, qty);
                 mergeStmt.executeUpdate();
 
-                // Commit transaction and refresh inventory view
                 conn.commit();
                 displayInventory();
                 showInfo("Tool borrowed successfully!");
@@ -251,7 +245,6 @@ public class StudentPage extends Application {
             return;
         }
 
-        // Prompt for item ID and quantity to return
         TextInputDialog itemDialog = new TextInputDialog();
         itemDialog.setTitle("Return Tool");
         itemDialog.setContentText("Enter Item ID to return:");
@@ -270,11 +263,9 @@ public class StudentPage extends Application {
             int itemId = Integer.parseInt(itemIdStr);
             int qtyToReturn = Integer.parseInt(qtyStr);
 
-            // Begin transaction
             try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
                 conn.setAutoCommit(false);
 
-                // Check kung borrower nga yung student
                 PreparedStatement checkStmt = conn.prepareStatement("SELECT Quantity FROM dbo.borrowed_tools WHERE StudentID = ? AND ItemID = ?");
                 checkStmt.setString(1, currentStudentId);
                 checkStmt.setInt(2, itemId);
@@ -293,7 +284,6 @@ public class StudentPage extends Application {
                     return;
                 }
 
-                // Either update or delete borrowed record
                 if (qtyToReturn == borrowedQty) {
                     PreparedStatement deleteStmt = conn.prepareStatement("DELETE FROM dbo.borrowed_tools WHERE StudentID = ? AND ItemID = ?");
                     deleteStmt.setString(1, currentStudentId);
@@ -307,13 +297,11 @@ public class StudentPage extends Application {
                     updateBorrowStmt.executeUpdate();
                 }
 
-                // Return the item to inventory
                 PreparedStatement updateInventoryStmt = conn.prepareStatement("UPDATE dbo.inventory SET Quantity = Quantity + ? WHERE ItemID = ?");
                 updateInventoryStmt.setInt(1, qtyToReturn);
                 updateInventoryStmt.setInt(2, itemId);
                 updateInventoryStmt.executeUpdate();
 
-                // Commit changes and refresh inventory
                 conn.commit();
                 displayInventory();
                 showInfo("Tool returned successfully!");
@@ -341,6 +329,18 @@ public class StudentPage extends Application {
         alert.setTitle("Info");
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    // Method para i-close properly ang database connection at mag-log sa console
+    private void closeDatabaseConnection() {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            if (conn != null && !conn.isClosed()) {
+                conn.close();
+                System.out.println("Database connection closed successfully.");
+            }
+        } catch (SQLException e) {
+            System.out.println("Error closing database: " + e.getMessage());
+        }
     }
 
     // Item class - Model para sa TableView data
