@@ -23,7 +23,7 @@ public class WelcomePage extends Application {
 
         // Try-catch block para mag-load ng custom na icon sa application
         try {
-            primaryStage.getIcons().add(new Image("file:///C:\\Users\\chris\\Downloads\\u_logo.jpg"));
+            primaryStage.getIcons().add(new Image("file:///C:\\Users\\chris\\Downloads\\IMPACT LOGO.jpg"));
         } catch (Exception e) {
             System.out.println("Icon not found or failed to load.");
         }
