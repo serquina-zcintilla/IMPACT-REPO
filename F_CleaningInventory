@@ -1,0 +1,1159 @@
+package default1; //package
+
+// Import ng mga JavaFX at SQL libraries na gagamitin sa app
+import javafx.application.Application;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+	
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+import java.util.function.Function; // For the action column
+
+import default1.CleaningInventory1.BorrowedToolDisplay;
+
+public class CleaningInventory1 extends Application {
+
+    private VBox mainLayout;
+    private TableView<BorrowRequestDisplayItem> borrowRequestTable; // Added to easily refresh
+
+    // DATABASE CONNECTION DETAILS
+    // Ito 'yung ginagamit para maka-connect sa SQL Server database
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=IMPACTDB;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASSWORD);
+    }
+    
+    public static void main(String[] args) {
+        // Entry point ng JavaFX application
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage stage) {
+        // Setup ng primary stage (main window)
+        stage.setTitle("Admin Dashboard");
+
+        // Try to set icon ng app
+        try {
+            stage.getIcons().add(new Image(("file:///C:/Users/chris/Downloads/CIRCLE_LOGO.png")));
+        } catch (Exception e) {
+            System.out.println("Icon not found or failed to load.");
+            e.printStackTrace();
+        }
+
+        // Gumagawa ng Header Label
+        Label header = new Label("ADMIN DASHBOARD");
+        header.setFont(Font.font("Segoe UI", 34));
+        header.setTextFill(Color.WHITE);
+
+        // Wrapper para sa header para ma-center at may padding
+        HBox headerBox = new HBox(header);
+        headerBox.setAlignment(Pos.CENTER);
+        headerBox.setPadding(new Insets(30, 0, 20, 0));
+
+        // Layout ng mga function cards (Add, Update, etc.)
+        GridPane cardGrid = new GridPane();
+        cardGrid.setHgap(40); // horizontal space between cards
+        cardGrid.setVgap(40); // vertical space between cards
+        cardGrid.setAlignment(Pos.CENTER);
+        cardGrid.setPadding(new Insets(20));
+
+        // Adding cards sa GridPane with their respective action handlers
+        cardGrid.add(createCard("➕", "Add Tools", "Insert new cleaning tools", this::addItem), 0, 0);
+        cardGrid.add(createCard("🔄", "Update Tools", "Modify tool information", this::updateItem), 1, 0);
+        cardGrid.add(createCard("🗑️", "Delete Tools", "Remove tool from inventory", this::deleteItem), 2, 0);
+        cardGrid.add(createCard("📉", "Low Stock Report", "View low quantity tools", this::lowStockReport), 0, 1);
+        cardGrid.add(createCard("📋", "View Inventory", "See all available tools", this::displayInventory), 1, 1);
+        cardGrid.add(createCard("📩", "Manage Borrow Requests", "Review student borrow requests", this::manageBorrowRequests), 2, 1); // NEW CARD FOR BORROW REQUESTS
+        cardGrid.add(createCard("👥", "View Borrowers", "See list of borrowers", this::showBorrowersWindow), 0, 2);
+        cardGrid.add(createCard("🕒", "Show History", "View item change history", this::showHistory), 1, 2);
+        cardGrid.add(createCard("➡️", "Log Out", "End admin session", () -> logout(stage)), 2, 2); // Moved logout for better alignment
+
+
+        // Main layout combining header and card grid
+        mainLayout = new VBox(20, headerBox, cardGrid);
+        mainLayout.setPadding(new Insets(20));
+        mainLayout.setStyle("-fx-background-color: linear-gradient(to bottom right, #001933, #004d99);");
+
+        // Creating the scene at inilalagay sa stage
+        Scene scene = new Scene(mainLayout, 1000, 700);
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    // Reusable card component for each dashboard function
+    private VBox createCard(String icon, String title, String description, Runnable action) {
+        // Icon Label
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font("Segoe UI", 40));
+        iconLabel.setTextFill(Color.web("#004d99"));
+
+        // Title ng card - now with wrapping
+        Label titleLabel = new Label(title);
+        titleLabel.setFont(Font.font("Segoe UI Semibold", 16));
+        titleLabel.setTextFill(Color.WHITE);
+        titleLabel.setWrapText(true);
+        titleLabel.setMaxWidth(150); // Limit width to force wrapping if needed
+
+        // Description ng card - now with wrapping
+        Label descLabel = new Label(description);
+        descLabel.setFont(Font.font("Segoe UI", 12));
+        descLabel.setTextFill(Color.LIGHTGRAY);
+        descLabel.setWrapText(true);
+        descLabel.setMaxWidth(150); // Limit width to force wrapping if needed
+
+        // Layout ng card with styles and hover effects
+        VBox card = new VBox(10, iconLabel, titleLabel, descLabel); // Reduced spacing from 12 to 10
+        card.setPadding(new Insets(20)); // Reduced padding from 25 to 20
+        card.setAlignment(Pos.CENTER);
+        card.setMinWidth(200); // Set minimum width
+        card.setMinHeight(150); // Set minimum height
+        card.setMaxWidth(200); // Set maximum width
+        card.setMaxHeight(150); // Set maximum height
+        card.setStyle("-fx-background-color: linear-gradient(to bottom right, #cce6ff, #66b3ff); " +
+                "-fx-background-radius: 18; " +
+                "-fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.3), 10, 0, 4, 4);");
+
+        // Event handlers para sa click at hover effects
+        card.setOnMouseClicked(e -> action.run());
+        card.setOnMouseEntered(e -> card.setStyle("-fx-background-color: linear-gradient(to bottom right, #b3daff, #4da6ff);" +
+                "-fx-background-radius: 18; -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.3), 10, 0, 4, 4); -fx-cursor: hand; -fx-scale-x: 1.05; -fx-scale-y: 1.05;"));
+        card.setOnMouseExited(e -> card.setStyle("-fx-background-color: linear-gradient(to bottom right, #cce6ff, #66b3ff);" +
+                "-fx-background-radius: 18; -fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.3), 10, 0, 4, 4);"));
+
+        return card;
+    }
+
+    // Setup ng mga columns sa inventory table
+    private void setupTableColumns(TableView<InventoryItem> table) {
+        TableColumn<InventoryItem, String> idCol = new TableColumn<>("Item ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("itemID"));
+
+        TableColumn<InventoryItem, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+
+        TableColumn<InventoryItem, Integer> qtyCol = new TableColumn<>("Quantity");
+        qtyCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
+
+        TableColumn<InventoryItem, String> unitCol = new TableColumn<>("Unit");
+        unitCol.setCellValueFactory(new PropertyValueFactory<>("unit"));
+
+        TableColumn<InventoryItem, String> supplierCol = new TableColumn<>("Supplier");
+        supplierCol.setCellValueFactory(new PropertyValueFactory<>("supplier"));
+
+        table.getColumns().addAll(idCol, nameCol, qtyCol, unitCol, supplierCol);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setPlaceholder(new Label("No inventory data to display."));
+    }
+
+    // Simpleng method to show info alerts
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showErrorAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    // Dialog box para mag-input ng text mula sa user
+    private String promptInput(String prompt) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle(prompt);
+        dialog.setHeaderText(null);
+        dialog.setContentText(prompt);
+        Optional<String> result = dialog.showAndWait();
+        return result.filter(s -> !s.trim().isEmpty()).orElse(null);
+    }
+
+    // Logout function na may confirmation dialog
+    private void logout(Stage stage) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Do you want to log out as an Admin?", ButtonType.YES, ButtonType.NO);
+        confirm.setTitle("Log Out Confirmation");
+        Optional<ButtonType> result = confirm.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.YES) {
+            showAlert("Logged Out", "You have been logged out.");
+            stage.close();
+            try {
+                new LogInPage().start(new Stage()); // Return sa login page
+            } catch (Exception ex) {
+                showAlert("Error", "Could not open login page: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    // Gumagawa ng bagong modal window to show inventory table
+    private void openInventoryTableWindow(String title, String placeholderMessage, ObservableList<InventoryItem> data) {
+        Stage tableStage = new Stage();
+        tableStage.setTitle(title);
+        tableStage.initModality(Modality.APPLICATION_MODAL); // Block ang main window habang bukas ito
+
+        // Try to set icon para sa inventory table window
+        try {
+            Image appIcon = new Image("file:C:/Users/chris/Downloads/download (5).png");
+            if (!appIcon.isError()) {
+                tableStage.getIcons().add(appIcon);
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading icon for " + title + " window: " + e.getMessage());
+        }
+
+        TableView<InventoryItem> table = new TableView<>();
+        setupTableColumns(table); // Use the helper method
+        table.setItems(data);
+        table.setPlaceholder(new Label(placeholderMessage));
+
+        ScrollPane scrollPane = new ScrollPane(table);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(400); // Set a preferred height for the table
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+
+        VBox root = new VBox(10, scrollPane);
+        root.setPadding(new Insets(10));
+        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #001933, #004d99);"); // Apply consistent styling
+
+        Scene scene = new Scene(root, 800, 500);
+        tableStage.setScene(scene);
+        tableStage.showAndWait(); // Use showAndWait to block until the window is closed
+    }
+
+    private void addItem() {
+        // Use input validation
+        String name = getValidatedInput("Item Name:", true, false, false);
+        if (name == null) return;
+
+        String qtyStr = getValidatedInput("Quantity:", false, true, false);
+        if (qtyStr == null) return;
+
+        String unit = getValidatedInput("Unit:", false, false, false);
+        if (unit == null) return;
+
+        String supplier = getValidatedInput("Supplier:", true, false, false);
+        if (supplier == null) return;
+
+        try {
+            int qty = Integer.parseInt(qtyStr); // Safe due to validation
+
+            try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+                String insertSQL = "INSERT INTO inventory (name, quantity, unit, supplier) VALUES (?, ?, ?, ?)";
+                PreparedStatement ps = conn.prepareStatement(insertSQL, Statement.RETURN_GENERATED_KEYS);
+
+                ps.setString(1, name);
+                ps.setInt(2, qty);
+                ps.setString(3, unit);
+                ps.setString(4, supplier);
+
+                int rows = ps.executeUpdate();
+                if (rows > 0) {
+                    ResultSet generatedKeys = ps.getGeneratedKeys();
+                    String generatedId = null;
+                    if (generatedKeys.next()) {
+                        generatedId = generatedKeys.getString(1);
+                    }
+
+                    showAlert("Success", "Item added!" + (generatedId != null ? " New Item ID: " + generatedId : ""));
+                    displayInventory(); // Show updated inventory
+
+                    if (generatedId != null) {
+                        logHistory("Added", generatedId, name, qty);
+                    }
+                } else {
+                    showAlert("Error", "Failed to add item.");
+                }
+            }
+        } catch (SQLException e) {
+            showAlert("Error", "Database error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private String getValidatedInput(String prompt, boolean isStringOnly, boolean isNumeric, boolean allowZero) { //add validation
+        while (true) {
+            TextInputDialog dialog = new TextInputDialog();
+            dialog.setTitle("Input Required");
+            dialog.setHeaderText(null);
+            dialog.setContentText(prompt);
+            Optional<String> result = dialog.showAndWait();
+
+            if (!result.isPresent()) {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to cancel?", ButtonType.YES, ButtonType.NO);
+                confirm.setTitle("Confirm Cancel");
+                confirm.setHeaderText(null);
+                Optional<ButtonType> confirmResult = confirm.showAndWait();
+                if (confirmResult.isPresent() && confirmResult.get() == ButtonType.YES) {
+                    return null;
+                } else {
+                    continue;
+                }
+            }
+
+            String input = result.get().trim();
+
+            if (input.isEmpty()) {
+                showAlert("Invalid Input", "Field cannot be empty.");
+                continue;
+            }
+
+            if (isStringOnly && !input.matches("[a-zA-Z\\s]+")) {
+                showAlert("Invalid Input", "Only letters and spaces are allowed.");
+                continue;
+            }
+
+            if (isNumeric) {
+                try {
+                    int number = Integer.parseInt(input);
+                    if (number < 0 || (!allowZero && number == 0)) {
+                        showAlert("Invalid Input", "Quantity must be a positive number.");
+                        continue;
+                    }
+                } catch (NumberFormatException e) {
+                    showAlert("Invalid Input", "Please enter a valid number.");
+                    continue;
+                }
+            }
+
+            return input;
+        }
+    }
+
+
+    private void updateItem() {
+        String id = getValidatedInput("Enter Item ID to update:", false, false, false);
+        if (id == null) return;
+
+        String newQtyStr = getValidatedInput("New Quantity:", false, true, false);
+        if (newQtyStr == null) return;
+
+        try {
+            int newQty = Integer.parseInt(newQtyStr); // Safe due to validation
+
+            try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+                String checkSQL = "SELECT name, quantity FROM inventory WHERE itemID = ?";
+                PreparedStatement checkStmt = conn.prepareStatement(checkSQL);
+                checkStmt.setString(1, id);
+                ResultSet rs = checkStmt.executeQuery();
+
+                String itemName = null;
+                int oldQty = 0;
+                if (rs.next()) {
+                    itemName = rs.getString("name");
+                    oldQty = rs.getInt("quantity");
+                } else {
+                    showAlert("Error", "Item ID not found.");
+                    return;
+                }
+
+                String updateSQL = "UPDATE inventory SET quantity = ? WHERE itemID = ?";
+                PreparedStatement ps = conn.prepareStatement(updateSQL);
+                ps.setInt(1, newQty);
+                ps.setString(2, id);
+
+                int rows = ps.executeUpdate();
+                if (rows > 0) {
+                    showAlert("Success", "Item updated!");
+                    displayInventory(); // Show updated inventory in a new window
+                    logHistory("Updated (Qty from " + oldQty + " to " + newQty + ")", id, itemName, newQty);
+                } else {
+                    showAlert("Error", "Update failed.");
+                }
+            }
+        } catch (SQLException e) {
+            showAlert("Error", "Database error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private String getValidatedInputt(String prompt, boolean isStringOnly, boolean isNumeric, boolean allowZero) {
+        while (true) {
+            TextInputDialog dialog = new TextInputDialog();
+            dialog.setTitle("Input Required");
+            dialog.setHeaderText(null);
+            dialog.setContentText(prompt);
+            Optional<String> result = dialog.showAndWait();
+
+            if (!result.isPresent()) {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to cancel?", ButtonType.YES, ButtonType.NO);
+                confirm.setTitle("Confirm Cancel");
+                confirm.setHeaderText(null);
+                Optional<ButtonType> confirmResult = confirm.showAndWait();
+                if (confirmResult.isPresent() && confirmResult.get() == ButtonType.YES) {
+                    return null;
+                } else {
+                    continue;
+                }
+            }
+
+            String input = result.get().trim();
+
+            if (input.isEmpty()) {
+                showAlert("Invalid Input", "Field cannot be empty.");
+                continue;
+            }
+
+            if (isStringOnly && !input.matches("[a-zA-Z\\s]+")) {
+                showAlert("Invalid Input", "Only letters and spaces are allowed.");
+                continue;
+            }
+
+            if (isNumeric) {
+                try {
+                    int number = Integer.parseInt(input);
+                    if (number < 0 || (!allowZero && number == 0)) {
+                        showAlert("Invalid Input", "Quantity must be a positive number.");
+                        continue;
+                    }
+                } catch (NumberFormatException e) {
+                    showAlert("Invalid Input", "Please enter a valid number.");
+                    continue;
+                }
+            }
+
+            return input;
+        }
+    }
+
+    private void deleteItem() {
+        String id = promptInput("Enter Item ID to delete:");
+        if (id == null) return;
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String checkSQL = "SELECT name, quantity FROM inventory WHERE itemID = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkSQL);
+            checkStmt.setString(1, id);
+            ResultSet rs = checkStmt.executeQuery();
+            String itemName = null;
+            int itemQty = 0;
+            if (rs.next()) {
+                itemName = rs.getString("name");
+                itemQty = rs.getInt("quantity");
+            } else {
+                showAlert("Error", "Item ID not found.");
+                return;
+            }
+
+            String deleteSQL = "DELETE FROM inventory WHERE itemID = ?";
+            PreparedStatement ps = conn.prepareStatement(deleteSQL);
+            ps.setString(1, id);
+
+            int rows = ps.executeUpdate();
+            if (rows > 0) {
+                showAlert("Success", "Item deleted!");
+                displayInventory(); // Show updated inventory in a new window
+                logHistory("Deleted", id, itemName, itemQty);
+            } else {
+                showAlert("Error", "Deletion failed.");
+            }
+        } catch (SQLException e) {
+            showAlert("Error", "Database error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void displayInventory() {
+        ObservableList<InventoryItem> data = FXCollections.observableArrayList();
+        String query = "SELECT ItemID AS ID, Name, Quantity AS Qty, Unit, Supplier FROM dbo.inventory WHERE Quantity > 0";
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            while (rs.next()) {
+                String id = rs.getString("ID");
+                String name = rs.getString("Name");
+                int qty = rs.getInt("Qty");
+                String unit = rs.getString("Unit");
+                String supplier = rs.getString("Supplier");
+
+                InventoryItem item = new InventoryItem(id, name, qty, unit, supplier);
+                data.add(item);
+            }
+            openInventoryTableWindow("Current Inventory (Tools)", "No tools in inventory.", data);
+
+        } catch (SQLException e) {
+            showAlert("Error", "Database error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void lowStockReport() {
+        ObservableList<InventoryItem> lowStockData = FXCollections.observableArrayList();
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String sql = "SELECT itemID, name, quantity, unit, supplier FROM inventory WHERE quantity < 5";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            while (rs.next()) {
+                String id = rs.getString("itemID");
+                String name = rs.getString("name");
+                int qty = rs.getInt("quantity");
+                String unit = rs.getString("unit");
+                String supplier = rs.getString("supplier");
+
+                InventoryItem item = new InventoryItem(id, name, qty, unit, supplier);
+                lowStockData.add(item);
+            }
+
+            if (lowStockData.isEmpty()) {
+                showAlert("Low Stock Report", "No low stock items currently.");
+            }
+            openInventoryTableWindow("Low Stock Report", "No low stock items.", lowStockData);
+
+        } catch (SQLException e) {
+            showAlert("Error", "Database error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // --- History Functionality ---
+
+    private void logHistory(String action, String itemID, String itemName, int quantity) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            createHistoryTableIfNotExists(conn);
+
+            String insertHistorySQL = "INSERT INTO InventoryHistory (action, itemID, itemName, quantity, timestamp) VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement ps = conn.prepareStatement(insertHistorySQL);
+            ps.setString(1, action);
+            ps.setString(2, itemID);
+            ps.setString(3, itemName);
+            ps.setInt(4, quantity);
+            ps.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Error logging history: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void createHistoryTableIfNotExists(Connection conn) throws SQLException {
+        String createTableSQL = "IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='InventoryHistory' and xtype='U') " +
+                                "CREATE TABLE InventoryHistory (" +
+                                "    id INT PRIMARY KEY IDENTITY(1,1)," +
+                                "    action VARCHAR(255) NOT NULL," +
+                                "    itemID VARCHAR(50) NOT NULL," + // itemID stored as VARCHAR
+                                "    itemName VARCHAR(255) NOT NULL," +
+                                "    quantity INT NOT NULL," +
+                                "    timestamp DATETIME NOT NULL" +
+                                ");";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(createTableSQL);
+        }
+    }
+
+    private void showHistory() {
+        Stage historyStage = new Stage();
+        historyStage.setTitle("Inventory History");
+        historyStage.initModality(Modality.APPLICATION_MODAL);
+
+        try {
+            Image historyIcon = new Image("file:C:/Users/zcint/Downloads/download (5).png");
+            if (!historyIcon.isError()) {
+                historyStage.getIcons().add(historyIcon);
+            } else {
+                System.err.println("Warning: Could not load history icon. Check path: C:/Users/zcint/Downloads/download (5).png");
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading history icon: " + e.getMessage());
+        }
+
+        TableView<HistoryItem> historyTable = new TableView<>();
+        ObservableList<HistoryItem> historyData = FXCollections.observableArrayList();
+
+        TableColumn<HistoryItem, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+        TableColumn<HistoryItem, String> actionCol = new TableColumn<>("Action");
+        actionCol.setCellValueFactory(new PropertyValueFactory<>("action"));
+        TableColumn<HistoryItem, String> itemIDCol = new TableColumn<>("Item ID");
+        itemIDCol.setCellValueFactory(new PropertyValueFactory<>("itemID"));
+        TableColumn<HistoryItem, String> itemNameCol = new TableColumn<>("Item Name");
+        itemNameCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
+        TableColumn<HistoryItem, Integer> quantityCol = new TableColumn<>("Quantity");
+        quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
+        TableColumn<HistoryItem, String> timestampCol = new TableColumn<>("Timestamp");
+        timestampCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
+
+        historyTable.getColumns().addAll(idCol, actionCol, itemIDCol, itemNameCol, quantityCol, timestampCol);
+        historyTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        historyTable.setPlaceholder(new Label("No history available."));
+
+        ScrollPane historyScrollPane = new ScrollPane(historyTable);
+        historyScrollPane.setFitToWidth(true);
+        historyScrollPane.setPrefHeight(400);
+        historyScrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            createHistoryTableIfNotExists(conn);
+
+            String sql = "SELECT * FROM InventoryHistory ORDER BY timestamp DESC";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String action = rs.getString("action");
+                String itemID = rs.getString("itemID");
+                String itemName = rs.getString("itemName");
+                int quantity = rs.getInt("quantity");
+                LocalDateTime timestamp = rs.getTimestamp("timestamp").toLocalDateTime();
+                historyData.add(new HistoryItem(id, action, itemID, itemName, quantity, timestamp.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+            }
+            historyTable.setItems(historyData);
+        } catch (SQLException e) {
+            showAlert("Error", "Database error loading history: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        VBox root = new VBox(10, historyScrollPane);
+        root.setPadding(new Insets(10));
+        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #001933, #004d99);");
+        Scene scene = new Scene(root, 800, 500);
+        historyStage.setScene(scene);
+        historyStage.showAndWait();
+    }
+
+    // NEW METHOD: To manage borrow requests from students
+    private void manageBorrowRequests() {
+        Stage manageRequestsStage = new Stage();
+        manageRequestsStage.setTitle("Manage Borrow Requests");
+        manageRequestsStage.initModality(Modality.APPLICATION_MODAL); // Block main window
+
+        try {
+            Image requestsIcon = new Image("file:C:/Users/zcint/Downloads/download (5).png"); // Using a placeholder icon, adjust as needed
+            if (!requestsIcon.isError()) {
+                manageRequestsStage.getIcons().add(requestsIcon);
+            } else {
+                System.err.println("Warning: Could not load requests icon. Check path: C:/Users/zcint/Downloads/download (5).png");
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading requests icon: " + e.getMessage());
+        }
+
+        borrowRequestTable = new TableView<>(); // Initialize the class-level TableView
+        ObservableList<BorrowRequestDisplayItem> requestData = FXCollections.observableArrayList();
+
+        // Define columns for the borrow requests table
+        TableColumn<BorrowRequestDisplayItem, Integer> reqIdCol = new TableColumn<>("Req ID");
+        reqIdCol.setCellValueFactory(new PropertyValueFactory<>("requestID"));
+        TableColumn<BorrowRequestDisplayItem, String> studentIdCol = new TableColumn<>("Student ID");
+        studentIdCol.setCellValueFactory(new PropertyValueFactory<>("studentID"));
+        TableColumn<BorrowRequestDisplayItem, String> studentNameCol = new TableColumn<>("Student Name");
+        studentNameCol.setCellValueFactory(new PropertyValueFactory<>("studentName"));
+        TableColumn<BorrowRequestDisplayItem, String> itemNameCol = new TableColumn<>("Item Name");
+        itemNameCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
+        TableColumn<BorrowRequestDisplayItem, Integer> requestedQtyCol = new TableColumn<>("Qty");
+        requestedQtyCol.setCellValueFactory(new PropertyValueFactory<>("requestedQuantity"));
+        TableColumn<BorrowRequestDisplayItem, String> requestTimeCol = new TableColumn<>("Request Time");
+        requestTimeCol.setCellValueFactory(new PropertyValueFactory<>("requestTime"));
+        TableColumn<BorrowRequestDisplayItem, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        TableColumn<BorrowRequestDisplayItem, String> adminNotesCol = new TableColumn<>("Admin Notes");
+        adminNotesCol.setCellValueFactory(new PropertyValueFactory<>("adminNotes"));
+
+        // Action column for Approve/Reject buttons
+        TableColumn<BorrowRequestDisplayItem, Void> actionCol = new TableColumn<>("Action");
+        actionCol.setCellFactory(param -> new TableCell<>() {
+            private final Button approveButton = new Button("Approve");
+            private final Button rejectButton = new Button("Reject");
+            private final HBox pane = new HBox(5, approveButton, rejectButton);
+
+            {
+                approveButton.setStyle("-fx-background-color: #28a745; -fx-text-fill: white;"); // Green
+                rejectButton.setStyle("-fx-background-color: #dc3545; -fx-text-fill: white;"); // Red
+
+                approveButton.setOnAction(event -> {
+                    BorrowRequestDisplayItem request = getTableView().getItems().get(getIndex());
+                    handleApproveRequest(request);
+                });
+
+                rejectButton.setOnAction(event -> {
+                    BorrowRequestDisplayItem request = getTableView().getItems().get(getIndex());
+                    handleRejectRequest(request);
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    BorrowRequestDisplayItem request = getTableView().getItems().get(getIndex());
+                    // Only show buttons for pending requests
+                    if ("Pending".equals(request.getStatus())) {
+                        setGraphic(pane);
+                    } else {
+                        setGraphic(null); // Hide buttons if not pending
+                    }
+                }
+            }
+        });
+
+
+        borrowRequestTable.getColumns().addAll(reqIdCol, studentIdCol, studentNameCol, itemNameCol, requestedQtyCol, requestTimeCol, statusCol, adminNotesCol, actionCol);
+        borrowRequestTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        borrowRequestTable.setPlaceholder(new Label("No borrow requests to manage."));
+
+        ScrollPane scrollPane = new ScrollPane(borrowRequestTable);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(400);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+
+        // Populate table initially
+        refreshBorrowRequestsTable();
+
+
+        VBox root = new VBox(10, scrollPane);
+        root.setPadding(new Insets(10));
+        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #001933, #004d99);");
+        Scene scene = new Scene(root, 1000, 500); // Adjust scene size as needed
+        manageRequestsStage.setScene(scene);
+        manageRequestsStage.showAndWait();
+    }
+
+    // Helper method to refresh the borrow requests table data
+    private void refreshBorrowRequestsTable() {
+        ObservableList<BorrowRequestDisplayItem> requestData = FXCollections.observableArrayList();
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            createBorrowRequestsTableIfNotExists(conn); // Ensure table exists
+
+            // SELECT itemID as well!
+            String sql = "SELECT requestID, studentID, studentName, itemID, itemName, requestedQuantity, requestTime, status, adminNotes FROM BorrowRequests ORDER BY requestTime DESC";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            while (rs.next()) {
+                requestData.add(new BorrowRequestDisplayItem(
+                        rs.getInt("requestID"),
+                        rs.getString("studentID"),
+                        rs.getString("studentName"),
+                        rs.getInt("itemID"), // Pass the itemID here!
+                        rs.getString("itemName"),
+                        rs.getInt("requestedQuantity"),
+                        rs.getTimestamp("requestTime").toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                        rs.getString("status"),
+                        rs.getString("adminNotes")
+                ));
+            }
+            if (borrowRequestTable != null) {
+                borrowRequestTable.setItems(requestData);
+            }
+        } catch (SQLException e) {
+            showErrorAlert("Database Error", "Failed to load borrow requests: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void showBorrowersWindow() {
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Borrowers List");
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        TableView<BorrowedToolDisplay> table = new TableView<>();
+        table.setPrefWidth(800);
+        table.setPrefHeight(450);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<BorrowedToolDisplay, String> studentIDCol = new TableColumn<>("Student ID");
+        studentIDCol.setCellValueFactory(new PropertyValueFactory<>("studentID"));
+
+        TableColumn<BorrowedToolDisplay, String> fullNameCol = new TableColumn<>("Full Name");
+        fullNameCol.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+
+        TableColumn<BorrowedToolDisplay, Integer> itemIDCol = new TableColumn<>("Item ID");
+        itemIDCol.setCellValueFactory(new PropertyValueFactory<>("itemID"));
+
+        TableColumn<BorrowedToolDisplay, String> itemNameCol = new TableColumn<>("Item Name");
+        itemNameCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
+
+        TableColumn<BorrowedToolDisplay, Integer> quantityCol = new TableColumn<>("Quantity");
+        quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
+
+        table.getColumns().addAll(studentIDCol, fullNameCol, itemIDCol, itemNameCol, quantityCol);
+
+        VBox content = new VBox(10, table);
+        content.setPadding(new Insets(15));
+        content.setPrefSize(800, 450);
+
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefWidth(850);
+        dialog.getDialogPane().setPrefHeight(500);
+
+        // ✅ Refresh method for updating table data
+        Runnable refreshData = () -> {
+            ObservableList<BorrowedToolDisplay> data = FXCollections.observableArrayList();
+            String query = """
+                SELECT bt.StudentID, u.full_name, bt.ItemID, i.Name AS item_name, bt.Quantity
+                FROM dbo.borrowed_tools bt
+                JOIN dbo.users u ON bt.StudentID = u.id_number
+                JOIN dbo.inventory i ON bt.ItemID = i.ItemID
+            """;
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(query);
+                 ResultSet rs = stmt.executeQuery()) {
+
+                while (rs.next()) {
+                    data.add(new BorrowedToolDisplay(
+                        rs.getString("StudentID"),
+                        rs.getString("full_name"),
+                        rs.getInt("ItemID"),
+                        rs.getString("item_name"),
+                        rs.getInt("Quantity")
+                    ));
+                }
+
+                table.setItems(data);
+            } catch (SQLException e) {
+                showError("Error loading borrowed tools: " + e.getMessage());
+            }
+        };
+
+        // ✅ Initial load
+        refreshData.run();
+
+        // 🔁 Auto refresh every 3 seconds using Timeline
+        javafx.animation.Timeline autoRefresh = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), event -> refreshData.run())
+        );
+        autoRefresh.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        autoRefresh.play();
+
+        // 🧹 Stop auto-refresh when dialog is closed
+        dialog.setOnHidden(e -> autoRefresh.stop());
+
+        dialog.showAndWait();
+    }
+
+    public class BorrowedToolDisplay {
+        private final SimpleStringProperty studentID;
+        private final SimpleStringProperty fullName;
+        private final SimpleIntegerProperty itemID;
+        private final SimpleStringProperty itemName;
+        private final SimpleIntegerProperty quantity;
+
+        public BorrowedToolDisplay(String studentID, String fullName, int itemID, String itemName, int quantity) {
+            this.studentID = new SimpleStringProperty(studentID);
+            this.fullName = new SimpleStringProperty(fullName);
+            this.itemID = new SimpleIntegerProperty(itemID);
+            this.itemName = new SimpleStringProperty(itemName);
+            this.quantity = new SimpleIntegerProperty(quantity);
+        }
+
+        public String getStudentID() { return studentID.get(); }
+        public String getFullName() { return fullName.get(); }
+        public int getItemID() { return itemID.get(); }
+        public String getItemName() { return itemName.get(); }
+        public int getQuantity() { return quantity.get(); }
+    }
+    
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void handleApproveRequest(BorrowRequestDisplayItem request) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, 
+            "Approve request for " + request.getItemName() + " (Qty: " + 
+            request.getRequestedQuantity() + ") by " + request.getStudentName() + "?", 
+            ButtonType.YES, ButtonType.NO);
+        confirm.setTitle("Confirm Approval");
+        Optional<ButtonType> result = confirm.showAndWait();
+
+        // If user clicks NO or closes the dialog, show cancel confirmation
+        if (!result.isPresent() || result.get() != ButtonType.YES) {
+            Alert cancelConfirm = new Alert(Alert.AlertType.CONFIRMATION, 
+                "Do you want to cancel the approval?", 
+                ButtonType.YES, ButtonType.NO);
+            cancelConfirm.setTitle("Cancel Approval");
+            Optional<ButtonType> cancelResult = cancelConfirm.showAndWait();
+            
+            // If user confirms cancel, just return
+            if (cancelResult.isPresent() && cancelResult.get() == ButtonType.YES) {
+                return;
+            } else {
+                // If user says no to cancel, show the approval dialog again
+                handleApproveRequest(request);
+                return;
+            }
+        }
+
+        TextInputDialog notesDialog = new TextInputDialog("Approved.");
+        notesDialog.setTitle("Admin Notes");
+        notesDialog.setHeaderText("Enter notes for approval:");
+        notesDialog.setContentText("Notes:");
+        Optional<String> notesResult = notesDialog.showAndWait();
+        
+        // If user cancels the notes dialog, show cancel confirmation
+        if (!notesResult.isPresent()) {
+            Alert cancelConfirm = new Alert(Alert.AlertType.CONFIRMATION, 
+                "Do you want to cancel the approval?", 
+                ButtonType.YES, ButtonType.NO);
+            cancelConfirm.setTitle("Cancel Approval");
+            Optional<ButtonType> cancelResult = cancelConfirm.showAndWait();
+            
+            if (cancelResult.isPresent() && cancelResult.get() == ButtonType.YES) {
+                return;
+            } else {
+                // If user says no to cancel, show the notes dialog again
+                handleApproveRequest(request);
+                return;
+            }
+        }
+        
+        String adminNotes = notesResult.get();
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            conn.setAutoCommit(false); // Start transaction
+
+            // 1. Update status in BorrowRequests table
+            String updateRequestSQL = "UPDATE BorrowRequests SET status = ?, adminNotes = ? WHERE requestID = ?";
+            PreparedStatement updateReqStmt = conn.prepareStatement(updateRequestSQL);
+            updateReqStmt.setString(1, "Approved");
+            updateReqStmt.setString(2, adminNotes);
+            updateReqStmt.setInt(3, request.getRequestID());
+            updateReqStmt.executeUpdate();
+
+            // 2. Deduct from inventory
+            String updateInventorySQL = "UPDATE inventory SET Quantity = Quantity - ? WHERE ItemID = ?";
+            PreparedStatement updateInvStmt = conn.prepareStatement(updateInventorySQL);
+            updateInvStmt.setInt(1, request.getRequestedQuantity());
+            updateInvStmt.setInt(2, request.getItemID());
+            updateInvStmt.executeUpdate();
+
+            // 3. Add to borrowed_tools table (or update if already borrowed by student)
+            String mergeBorrowedSQL = "MERGE dbo.borrowed_tools AS target " +
+                                      "USING (SELECT ? AS StudentID, ? AS ItemID, ? AS Quantity) AS source " +
+                                      "ON (target.StudentID = source.StudentID AND target.ItemID = source.ItemID) " +
+                                      "WHEN MATCHED THEN " +
+                                      "   UPDATE SET Quantity = target.Quantity + source.Quantity " +
+                                      "WHEN NOT MATCHED THEN " +
+                                      "   INSERT (StudentID, ItemID, Quantity) VALUES (source.StudentID, source.ItemID, source.Quantity);";
+            PreparedStatement mergeBorrowedStmt = conn.prepareStatement(mergeBorrowedSQL);
+            mergeBorrowedStmt.setString(1, request.getStudentID());
+            mergeBorrowedStmt.setInt(2, request.getItemID());
+            mergeBorrowedStmt.setInt(3, request.getRequestedQuantity());
+            mergeBorrowedStmt.executeUpdate();
+
+            conn.commit(); // Commit transaction
+            showAlert("Success", "Request " + request.getRequestID() + " for " + request.getItemName() + " has been APPROVED.");
+            refreshBorrowRequestsTable(); // Refresh the table
+        } catch (SQLException e) {
+            showErrorAlert("Database Error", "Failed to approve request: " + e.getMessage());
+            e.printStackTrace();
+            try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+                conn.rollback();
+            } catch (SQLException rollbackEx) {
+                System.err.println("Error during rollback: " + rollbackEx.getMessage());
+            }
+        }
+    }
+
+
+    private void handleRejectRequest(BorrowRequestDisplayItem request) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, 
+            "Reject request for " + request.getItemName() + " (Qty: " + request.getRequestedQuantity() + ") by " + request.getStudentName() + "?", 
+            ButtonType.YES, ButtonType.NO);
+        confirm.setTitle("Confirm Rejection");
+        Optional<ButtonType> result = confirm.showAndWait();
+
+        // If user clicks NO or closes the dialog, show cancel confirmation
+        if (!result.isPresent() || result.get() != ButtonType.YES) {
+            Alert cancelConfirm = new Alert(Alert.AlertType.CONFIRMATION, 
+                "Do you want to cancel the rejection?", 
+                ButtonType.YES, ButtonType.NO);
+            cancelConfirm.setTitle("Cancel Rejection");
+            Optional<ButtonType> cancelResult = cancelConfirm.showAndWait();
+            
+            if (cancelResult.isPresent() && cancelResult.get() == ButtonType.YES) {
+                return;
+            } else {
+                // If user says no to cancel, show the rejection dialog again
+                handleRejectRequest(request);
+                return;
+            }
+        }
+
+        TextInputDialog notesDialog = new TextInputDialog("Rejected due to reasons.");
+        notesDialog.setTitle("Admin Notes");
+        notesDialog.setHeaderText("Enter notes for rejection:");
+        notesDialog.setContentText("Notes:");
+        Optional<String> notesResult = notesDialog.showAndWait();
+        
+        // If user cancels the notes dialog, show cancel confirmation
+        if (!notesResult.isPresent()) {
+            Alert cancelConfirm = new Alert(Alert.AlertType.CONFIRMATION, 
+                "Do you want to cancel the rejection?", 
+                ButtonType.YES, ButtonType.NO);
+            cancelConfirm.setTitle("Cancel Rejection");
+            Optional<ButtonType> cancelResult = cancelConfirm.showAndWait();
+            
+            if (cancelResult.isPresent() && cancelResult.get() == ButtonType.YES) {
+                return;
+            } else {
+                // If user says no to cancel, show the notes dialog again
+                handleRejectRequest(request);
+                return;
+            }
+        }
+        
+        String adminNotes = notesResult.orElse("Rejected.");
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String updateRequestSQL = "UPDATE BorrowRequests SET status = ?, adminNotes = ? WHERE requestID = ?";
+            PreparedStatement updateReqStmt = conn.prepareStatement(updateRequestSQL);
+            updateReqStmt.setString(1, "Rejected");
+            updateReqStmt.setString(2, adminNotes);
+            updateReqStmt.setInt(3, request.getRequestID());
+            updateReqStmt.executeUpdate();
+
+            showAlert("Success", "Request " + request.getRequestID() + " for " + request.getItemName() + " has been REJECTED.");
+            refreshBorrowRequestsTable(); // Refresh the table
+        } catch (SQLException e) {
+            showErrorAlert("Database Error", "Failed to reject request: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+
+    private void createBorrowRequestsTableIfNotExists(Connection conn) throws SQLException {
+        String createTableSQL = "IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BorrowRequests' and xtype='U') " +
+                                "CREATE TABLE BorrowRequests (" +
+                                "    requestID INT PRIMARY KEY IDENTITY(1,1)," +
+                                "    studentID VARCHAR(50) NOT NULL," +
+                                "    studentName VARCHAR(255) NOT NULL," + // Added studentName
+                                "    itemID INT NOT NULL," + // ItemID should be INT if it's auto-incremented INT in inventory
+                                "    itemName VARCHAR(255) NOT NULL," +
+                                "    requestedQuantity INT NOT NULL," +
+                                "    requestTime DATETIME NOT NULL," +
+                                "    status VARCHAR(50) NOT NULL," + // e.g., 'Pending', 'Approved', 'Rejected'
+                                "    adminNotes VARCHAR(500) NULL" + // Notes from admin
+                                ");";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(createTableSQL);
+        }
+    }
+
+
+    public static class InventoryItem {
+        private String itemID;
+        private String name;
+        private int quantity;
+        private String unit;
+        private String supplier;
+
+        public InventoryItem(String itemID, String name, int quantity, String unit, String supplier) {
+            this.itemID = itemID;
+            this.name = name;
+            this.quantity = quantity;
+            this.unit = unit;
+            this.supplier = supplier;
+        }
+
+        public String getItemID() { return itemID; }
+        public String getName() { return name; }
+        public int getQuantity() { return quantity; }
+        public String getUnit() { return unit; }
+        public String getSupplier() { return supplier; }
+    }
+
+    public static class HistoryItem {
+        private final int id;
+        private final String action;
+        private final String itemID;
+        private final String itemName;
+        private final int quantity;
+        private final String timestamp;
+
+        public HistoryItem(int id, String action, String itemID, String itemName, int quantity, String timestamp) {
+            this.id = id;
+            this.action = action;
+            this.itemID = itemID;
+            this.itemName = itemName;
+            this.quantity = quantity;
+            this.timestamp = timestamp;
+        }
+
+        public int getId() { return id; }
+        public String getAction() { return action; }
+        public String getItemID() { return itemID; }
+        public String getItemName() { return itemName; }
+        public int getQuantity() { return quantity; }
+        public String getTimestamp() { return timestamp; }
+    }
+
+    // NEW: Class for displaying borrow request history (reused from StudentPage concepts)
+    public static class BorrowRequestDisplayItem {
+        private final int requestID;
+        private final String studentID;
+        private final String studentName;
+        private final int itemID; // IMPORTANT: Changed to int and initialized
+        private final String itemName;
+        private final int requestedQuantity;
+        private final String requestTime;
+        private final String status;
+        private final String adminNotes;
+
+        // Constructor used when fetching from DB (includes itemID)
+        public BorrowRequestDisplayItem(int requestID, String studentID, String studentName, int itemID, String itemName, int requestedQuantity, String requestTime, String status, String adminNotes) {
+            this.requestID = requestID;
+            this.studentID = studentID;
+            this.studentName = studentName;
+            this.itemID = itemID; // Initialize itemID
+            this.itemName = itemName;
+            this.requestedQuantity = requestedQuantity;
+            this.requestTime = requestTime;
+            this.status = status;
+            this.adminNotes = adminNotes;
+        }
+
+        // Constructor used for display only (might not have itemID, but for consistency, prefer the above)
+        // Keeping this for potential compatibility, but the one above is preferred for new usage.
+        public BorrowRequestDisplayItem(int requestID, String studentID, String studentName, String itemName, int requestedQuantity, String requestTime, String status, String adminNotes) {
+            this(requestID, studentID, studentName, 0, itemName, requestedQuantity, requestTime, status, adminNotes); // Call the main constructor, set itemID to 0 or appropriate default
+        }
+
+
+        public int getRequestID() { return requestID; }
+        public String getStudentID() { return studentID; }
+        public String getStudentName() { return studentName; }
+        public String getItemName() { return itemName; }
+        public int getRequestedQuantity() { return requestedQuantity; }
+        public String getRequestTime() { return requestTime; }
+        public String getStatus() { return status; }
+        public String getAdminNotes() { return adminNotes; }
+        public int getItemID() { return itemID; } // Corrected getter to return int
+    }
+}
