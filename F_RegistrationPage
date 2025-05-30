@@ -1,0 +1,299 @@
+package default1;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.Cursor;
+import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+
+import java.sql.*;
+
+public class RegistrationPage extends Application {
+
+    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=IMPACTDB;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("I.M.P.A.C.T Registration");
+
+        try {
+            primaryStage.getIcons().add(new Image("file:///C:/Users/chris/Downloads/CIRCLE_LOGO.png"));
+        } catch (Exception e) {
+            System.out.println("Icon not found or failed to load.");
+        }
+
+        ImageView backgroundView = null;
+        try {
+            Image bgImage = new Image("file:///C:/Users/chris/Downloads/BG_RP.png");
+            backgroundView = new ImageView(bgImage);
+            backgroundView.setFitWidth(900);
+            backgroundView.setFitHeight(600);
+            backgroundView.setPreserveRatio(false);
+        } catch (Exception e) {
+            System.out.println("Background image not found.");
+        }
+
+        BorderPane root = new BorderPane();
+        root.setPadding(new Insets(30));
+        root.setStyle("-fx-background-color: transparent;");
+
+        VBox leftSection = new VBox(20);
+        leftSection.setAlignment(Pos.TOP_LEFT);
+        leftSection.setPadding(new Insets(30, 20, 50, 30));
+
+        Button backButton = new Button("← Back");
+        backButton.setFont(Font.font("Segoe UI", 14));
+        backButton.setStyle("-fx-background-color: transparent; -fx-text-fill: white;");
+        backButton.setCursor(Cursor.HAND);
+        backButton.setOnMouseEntered(e -> backButton.setStyle("-fx-background-color: #004080; -fx-text-fill: white;"));
+        backButton.setOnMouseExited(e -> backButton.setStyle("-fx-background-color: transparent; -fx-text-fill: white;"));
+        backButton.setOnAction(e -> {
+            primaryStage.close();
+            Stage welcomeStage = new Stage();
+            try {
+                new WelcomePage().start(welcomeStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        Label appTitle = new Label("I.M.P.A.C.T.");
+        appTitle.setFont(Font.font("Segoe UI", 36));
+        appTitle.setTextFill(Color.WHITE);
+
+        Label loginPrompt = new Label("Already have an account? Click here to Log in.");
+        loginPrompt.setFont(Font.font("Segoe UI", 14));
+        loginPrompt.setTextFill(Color.LIGHTGRAY);
+        loginPrompt.setCursor(Cursor.HAND);
+        loginPrompt.setOnMouseEntered(e -> loginPrompt.setTextFill(Color.WHITE));
+        loginPrompt.setOnMouseExited(e -> loginPrompt.setTextFill(Color.LIGHTGRAY));
+        loginPrompt.setOnMouseClicked(e -> {
+            primaryStage.close();
+            Stage loginStage = new Stage();
+            try {
+                new StudentLogInPage().start(loginStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+
+        ImageView logoView = null;
+        try {
+            Image logoImage = new Image("file:///C:/Users/chris/Downloads/CIRCLE_LOGO.png");
+            logoView = new ImageView(logoImage);
+            logoView.setFitWidth(265);
+            logoView.setPreserveRatio(true);
+        } catch (Exception e) {
+            System.err.println("Failed to load image: " + e.getMessage());
+        }
+
+        HBox logoContainer = new HBox();
+        if (logoView != null) {
+            logoContainer.getChildren().add(logoView);
+        }
+        logoContainer.setAlignment(Pos.CENTER);
+        VBox.setMargin(logoContainer, new Insets(0, 0, 40, -16));
+
+        leftSection.getChildren().addAll(backButton, appTitle, loginPrompt, spacer, logoContainer);
+        root.setLeft(leftSection);
+
+        VBox formSection = new VBox(15);
+        formSection.setAlignment(Pos.CENTER);
+        formSection.setPadding(new Insets(50));
+        formSection.setStyle("-fx-background-color: #ffffff; -fx-background-radius: 10;");
+
+        Label registerText = new Label("REGISTER YOUR ACCOUNT");
+        registerText.setFont(Font.font("Segoe UI", 20));
+        registerText.setTextFill(Color.BLACK);
+
+        TextField fullNameField = createTextField("Full Name");
+        TextField idNumberField = createTextField("ID Number");
+        PasswordField passwordField = createPasswordField("Password");
+        PasswordField confirmPasswordField = createPasswordField("Confirm Password");
+        TextField emailField = createTextField("Email (Optional)");
+
+        Button registerButton = new Button("Register");
+        registerButton.setFont(Font.font("Segoe UI", 16));
+        registerButton.setStyle("-fx-background-color: #003366; -fx-text-fill: white;");
+        registerButton.setOnMouseEntered(e -> registerButton.setStyle("-fx-background-color: #004080; -fx-text-fill: white;"));
+        registerButton.setOnMouseExited(e -> registerButton.setStyle("-fx-background-color: #003366; -fx-text-fill: white;"));
+
+        registerButton.setOnAction(e -> {
+            String fullName = fullNameField.getText();
+            String idNumber = idNumberField.getText();
+            String password = passwordField.getText();
+            String confirmPassword = confirmPasswordField.getText();
+            String email = emailField.getText();
+
+            if (!fullName.matches("[a-zA-Z ]+")) {
+                showAlert(Alert.AlertType.ERROR, "Full Name must contain letters only.");
+            } else if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$")) {
+                showAlert(Alert.AlertType.ERROR, "Please enter a valid email address.");
+            } else if (fullName.isEmpty() || idNumber.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Please fill out all the required fields.");
+            } else if (!password.equals(confirmPassword)) {
+                showAlert(Alert.AlertType.ERROR, "Passwords do not match. Please try again.");
+            } else {
+                registerAccount(fullName, idNumber, password, email, primaryStage);
+            }
+        });
+
+        Button deleteButton = new Button("Delete Account");
+        deleteButton.setFont(Font.font("Segoe UI", 16));
+        deleteButton.setStyle("-fx-background-color: #cc0000; -fx-text-fill: white;");
+        deleteButton.setOnMouseEntered(e -> deleteButton.setStyle("-fx-background-color: #990000; -fx-text-fill: white;"));
+        deleteButton.setOnMouseExited(e -> deleteButton.setStyle("-fx-background-color: #cc0000; -fx-text-fill: white;"));
+
+        deleteButton.setOnAction(e -> {
+            String idNumber = idNumberField.getText();
+            String inputPassword = passwordField.getText();
+
+            if (idNumber.isEmpty() || inputPassword.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Please enter both ID Number and Password to delete account.");
+                return;
+            }
+
+            // Confirm deletion
+            Alert confirmationAlert = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmationAlert.setTitle("Confirm Deletion");
+            confirmationAlert.setHeaderText("Are you sure you want to delete this account?");
+            confirmationAlert.setContentText("Type 'yes' to confirm or press 'Cancel'.");
+
+            TextInputDialog inputDialog = new TextInputDialog();
+            inputDialog.setTitle("Delete Confirmation");
+            inputDialog.setHeaderText("Are you sure you want to delete your account?");
+            inputDialog.setContentText("Type 'yes' to confirm:");
+
+            inputDialog.showAndWait().ifPresent(input -> {
+                if ("yes".equalsIgnoreCase(input)) {
+                    if (verifyPassword(idNumber, inputPassword)) {
+                        deleteAccount(idNumber);
+                        showAlert(Alert.AlertType.INFORMATION, "Account deleted successfully.");
+                        idNumberField.clear();
+                        fullNameField.clear();
+                        passwordField.clear();
+                        confirmPasswordField.clear();
+                        emailField.clear();
+                    } else {
+                        showAlert(Alert.AlertType.ERROR, "Incorrect password. Account not deleted.");
+                    }
+                }
+            });
+        });
+
+        Region spacer2 = new Region();
+        spacer2.setMinHeight(40);
+
+        Label adminLabel = new Label("Log in as Admin");
+        adminLabel.setFont(Font.font("Segoe UI", 16));
+        adminLabel.setTextFill(Color.DARKBLUE);
+        adminLabel.setCursor(Cursor.HAND);
+        adminLabel.setOnMouseEntered(e -> adminLabel.setTextFill(Color.LIGHTGRAY));
+        adminLabel.setOnMouseExited(e -> adminLabel.setTextFill(Color.DARKBLUE));
+        adminLabel.setOnMouseClicked(e -> {
+            primaryStage.close();
+            Stage adminStage = new Stage();
+            try {
+                new LogInPage().start(adminStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        formSection.getChildren().addAll(registerText, fullNameField, idNumberField, passwordField, confirmPasswordField, emailField, registerButton, deleteButton, spacer2, adminLabel);
+        root.setCenter(formSection);
+
+        StackPane stackPane = new StackPane();
+        if (backgroundView != null) {
+            stackPane.getChildren().addAll(backgroundView, root);
+        } else {
+            stackPane.getChildren().add(root);
+            stackPane.setStyle("-fx-background-color: linear-gradient(to bottom right, #003366, #0066cc);");
+        }
+
+        Scene scene = new Scene(stackPane, 900, 600);
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private TextField createTextField(String prompt) {
+        TextField tf = new TextField();
+        tf.setPromptText(prompt);
+        tf.setFont(Font.font("Segoe UI", 16));
+        tf.setMaxWidth(300);
+        return tf;
+    }
+
+    private PasswordField createPasswordField(String prompt) {
+        PasswordField pf = new PasswordField();
+        pf.setPromptText(prompt);
+        pf.setFont(Font.font("Segoe UI", 16));
+        pf.setMaxWidth(300);
+        return pf;
+    }
+
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Account Info");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void registerAccount(String fullName, String idNumber, String password, String email, Stage stage) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "INSERT INTO dbo.users (full_name, id_number, password, email) VALUES (?, ?, ?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setString(1, fullName);
+            stmt.setString(2, idNumber);
+            stmt.setString(3, password); // Plain password; replace with hash if needed
+            stmt.setString(4, email);
+            stmt.executeUpdate();
+            showAlert(Alert.AlertType.INFORMATION, "Account registered successfully.");
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Error: " + e.getMessage());
+        }
+    }
+
+    private boolean verifyPassword(String idNumber, String inputPassword) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "SELECT password FROM dbo.users WHERE id_number = ?";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setString(1, idNumber);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String correctPassword = rs.getString("password");
+                return inputPassword.equals(correctPassword); // Replace with hash check if needed
+            }
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Error verifying password: " + e.getMessage());
+        }
+        return false;
+    }
+
+    private void deleteAccount(String idNumber) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "DELETE FROM dbo.users WHERE id_number = ?";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setString(1, idNumber);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Error deleting account: " + e.getMessage());
+        }
+    }
+}
