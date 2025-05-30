@@ -1,0 +1,264 @@
+package default1; //package
+
+// ===== IMPORTS =====
+// Import ng mga kailangan na classes mula JavaFX, Java SQL, at security libraries
+import javafx.application.Application;
+import javafx.geometry.*;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class LogInPage extends Application {
+
+    // ====== CONSTANT CREDENTIALS ======
+    // Ito ang naka-hash na default admin credentials (for demo or default login)
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_PASSWORD_HASH = hashPassword("admin123");
+
+    @Override
+    public void start(Stage adminStage) {
+        adminStage.setTitle("Admin Login");
+
+        // ===== TRY TO SET WINDOW ICON =====
+        try {
+            adminStage.getIcons().add(new Image("file:///C:/Users/zcint/Downloads/CIRCLE_LOGO.png"));
+        } catch (Exception e) {
+            System.out.println("Icon not found or failed to load.");
+        }
+
+        // ====== MAIN LAYOUT ======
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setStyle("-fx-background-color: linear-gradient(to bottom right, #003366, #0066CC);");
+
+        // ========================= LEFT SECTION (LOGO + ROLE SWITCH) =========================
+        VBox leftSection = new VBox(20);
+        leftSection.setPadding(new Insets(40));
+        leftSection.setAlignment(Pos.CENTER_LEFT);
+
+        // Logo at app name
+        HBox logoBox = new HBox(10);
+        logoBox.setAlignment(Pos.CENTER_LEFT);
+        ImageView logo = new ImageView(new Image("file:///C:/Users/zcint/Downloads/CIRCLE_LOGO.png"));
+        logo.setFitHeight(50);
+        logo.setFitWidth(50);
+        Label impactText = new Label("I.M.P.A.C.T");
+        impactText.setFont(Font.font("Segoe UI", 24));
+        impactText.setTextFill(Color.WHITE);
+        logoBox.getChildren().addAll(logo, impactText);
+
+        // Page title label
+        Label pageTitle = new Label("ADMIN Log in");
+        pageTitle.setFont(Font.font("Segoe UI", 28));
+        pageTitle.setTextFill(Color.WHITE);
+
+        // Toggle buttons para pumili between Admin and Student login
+        ToggleGroup roleGroup = new ToggleGroup();
+        RadioButton adminBtn = new RadioButton("Admin");
+        RadioButton studentBtn = new RadioButton("Student");
+        adminBtn.setToggleGroup(roleGroup);
+        studentBtn.setToggleGroup(roleGroup);
+        adminBtn.setSelected(true);
+        styleToggle(adminBtn);
+        styleToggle(studentBtn);
+
+        // Layout ng toggle buttons
+        HBox toggleBox = new HBox(adminBtn, studentBtn);
+        toggleBox.setAlignment(Pos.CENTER_LEFT);
+        toggleBox.setSpacing(0);
+        toggleBox.setPadding(new Insets(10));
+        toggleBox.setBackground(new Background(new BackgroundFill(Color.web("#e6f0ff"), new CornerRadii(30), Insets.EMPTY)));
+
+        // Kapag pinili ang "Student", lilipat ng login page
+        studentBtn.setOnAction(e -> {
+            adminStage.close();
+            try {
+                new StudentLogInPage().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // I-add lahat ng elements sa left section
+        leftSection.getChildren().addAll(logoBox, pageTitle, toggleBox);
+
+        // ========================= RIGHT SECTION (FORM FIELDS) =========================
+        VBox formBox = new VBox(20);
+        formBox.setAlignment(Pos.CENTER);
+        formBox.setPadding(new Insets(40));
+        formBox.setBackground(new Background(new BackgroundFill(Color.web("#003d66", 0.7), new CornerRadii(30), Insets.EMPTY)));
+
+        // Username label and field
+        Label userLabel = new Label("Username");
+        userLabel.setFont(Font.font("Segoe UI", 20));
+        userLabel.setTextFill(Color.WHITE);
+        TextField userField = new TextField();
+        userField.setPromptText("Enter Username");
+        userField.setFont(Font.font("Segoe UI", 16));
+        userField.setMaxWidth(300);
+
+        // Password label and field
+        Label passLabel = new Label("Password");
+        passLabel.setFont(Font.font("Segoe UI", 20));
+        passLabel.setTextFill(Color.WHITE);
+        PasswordField passField = new PasswordField();
+        passField.setPromptText("Enter Password");
+        passField.setFont(Font.font("Segoe UI", 16));
+        passField.setMaxWidth(300);
+
+        // Terms and Conditions checkbox and label
+        CheckBox termsBox = new CheckBox();
+        Label termsLabel = new Label("Terms and Conditions");
+        termsLabel.setFont(Font.font("Segoe UI", 14));
+        termsLabel.setTextFill(Color.WHITE);
+        termsLabel.setCursor(javafx.scene.Cursor.HAND);
+        termsLabel.setOnMouseClicked(e -> showTermsAndConditions(termsBox));
+        termsLabel.setOnMouseEntered(e -> termsLabel.setTextFill(Color.LIGHTBLUE));
+        termsLabel.setOnMouseExited(e -> termsLabel.setTextFill(Color.WHITE));
+        HBox termsContainer = new HBox(10, termsBox, termsLabel);
+        termsContainer.setAlignment(Pos.CENTER_LEFT);
+
+        // Login button with hover effect
+        Button loginBtn = new Button("Log In");
+        loginBtn.setFont(Font.font("Segoe UI", 16));
+        loginBtn.setCursor(javafx.scene.Cursor.HAND);
+        loginBtn.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;");
+        loginBtn.setEffect(new DropShadow());
+        loginBtn.setOnMouseEntered(e -> loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;"));
+        loginBtn.setOnMouseExited(e -> loginBtn.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;"));
+
+        // Login action handler
+        loginBtn.setOnAction(e -> {
+            if (!termsBox.isSelected()) {
+                showAlert(Alert.AlertType.WARNING, "You must agree to the Terms and Conditions.");
+                return;
+            }
+
+            String username = userField.getText().trim();
+            String password = passField.getText();
+            String hashedInput = hashPassword(password);
+
+            // Validate login credentials
+            if (username.equals(ADMIN_USERNAME) && hashedInput.equals(ADMIN_PASSWORD_HASH)) {
+                showAlert(Alert.AlertType.INFORMATION, "Login successful!");
+                adminStage.close();
+                try {
+                    new CleaningInventory1().start(new Stage());
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Invalid credentials.");
+            }
+        });
+
+        // Label to go back to registration page
+        Label backToRegister = new Label("Back to Registration");
+        backToRegister.setFont(Font.font("Segoe UI", 14));
+        backToRegister.setTextFill(Color.WHITE);
+        backToRegister.setCursor(javafx.scene.Cursor.HAND);
+        backToRegister.setOnMouseEntered(e -> backToRegister.setTextFill(Color.LIGHTBLUE));
+        backToRegister.setOnMouseExited(e -> backToRegister.setTextFill(Color.WHITE));
+        backToRegister.setOnMouseClicked(e -> {
+            adminStage.close();
+            try {
+                new RegistrationPage().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // Add all form controls to right section
+        formBox.getChildren().addAll(userLabel, userField, passLabel, passField, termsContainer, loginBtn, backToRegister);
+
+        // Combine both sections into main layout
+        mainLayout.setLeft(leftSection);
+        mainLayout.setCenter(formBox);
+
+        // Setup the scene and show stage
+        Scene scene = new Scene(mainLayout, 950, 600);
+        adminStage.setScene(scene);
+        adminStage.setResizable(false);
+        adminStage.show();
+    }
+
+    // =================== TOGGLE BUTTON STYLE ===================
+    // Para mapaganda ang RadioButton style
+    private void styleToggle(RadioButton btn) {
+        btn.setFont(Font.font("Segoe UI", 16));
+        btn.setTextFill(Color.web("#003366"));
+        btn.setPadding(new Insets(10, 20, 10, 20));
+        btn.setBackground(new Background(new BackgroundFill(Color.TRANSPARENT, new CornerRadii(30), Insets.EMPTY)));
+    }
+
+    // =================== REUSABLE ALERT ===================
+    // Gumagawa ng alert dialog na may message
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.initModality(Modality.APPLICATION_MODAL);
+        alert.showAndWait();
+    }
+
+    // =================== PASSWORD HASHING ===================
+    // Method para ma-convert ang password to SHA-256 hash
+    private static String hashPassword(String password) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] encoded = digest.digest(password.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : encoded) {
+                String hexChar = Integer.toHexString(0xff & b);
+                if (hexChar.length() == 1) hex.append('0');
+                hex.append(hexChar);
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // =================== TERMS AND CONDITIONS DIALOG ===================
+    // Ipinapakita ang Terms and Conditions window
+    private void showTermsAndConditions(CheckBox termsBox) {
+        Stage termsStage = new Stage();
+        termsStage.initModality(Modality.APPLICATION_MODAL);
+        termsStage.setTitle("Terms and Conditions");
+
+        Label termsContent = new Label("By using this application as Admin, you agree to the rules and policies set by the organization. Please handle inventory data with responsibility.");
+        termsContent.setWrapText(true);
+        termsContent.setFont(Font.font("Segoe UI", 14));
+
+        Button acceptBtn = new Button("Accept");
+        acceptBtn.setFont(Font.font("Segoe UI", 14));
+        acceptBtn.setOnAction(e -> {
+            termsBox.setSelected(true);
+            termsStage.close();
+        });
+
+        VBox layout = new VBox(20, termsContent, acceptBtn);
+        layout.setPadding(new Insets(20));
+        layout.setAlignment(Pos.CENTER);
+
+        Scene scene = new Scene(layout, 400, 200);
+        termsStage.setScene(scene);
+        termsStage.showAndWait();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
