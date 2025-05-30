@@ -1,0 +1,337 @@
+package default1; //package
+
+import javafx.application.Application;
+import javafx.geometry.*;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+import java.sql.*;
+
+public class StudentLogInPage extends Application {
+
+	private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=IMPACTDB;encrypt=true;trustServerCertificate=true";
+    private static final String USER = "chris";
+    private static final String PASSWORD = "Christian";
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("Student Login");
+        try {
+            primaryStage.getIcons().add(new Image("file:///C:/Users/chris/Downloads/CIRCLE_LOGO.png"));
+        } catch (Exception e) {
+            System.out.println("Icon not found.");
+        }
+
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setStyle("-fx-background-color: linear-gradient(to bottom right, #003366, #0066CC);");
+
+        VBox leftSection = new VBox(20);
+        leftSection.setPadding(new Insets(40));
+        leftSection.setAlignment(Pos.CENTER_LEFT);
+
+        HBox logoBox = new HBox(10);
+        logoBox.setAlignment(Pos.CENTER_LEFT);
+        ImageView logo = new ImageView(new Image("file:///C:/Users/chris/Downloads/CIRCLE_LOGO.png"));
+        logo.setFitHeight(50);
+        logo.setFitWidth(50);
+        Label impactText = new Label("I.M.P.A.C.T");
+        impactText.setFont(Font.font("Segoe UI", 24));
+        impactText.setTextFill(Color.WHITE);
+        logoBox.getChildren().addAll(logo, impactText);
+
+        Label pageTitle = new Label("STUDENT Log in");
+        pageTitle.setFont(Font.font("Segoe UI", 28));
+        pageTitle.setTextFill(Color.WHITE);
+
+        ToggleGroup roleGroup = new ToggleGroup();
+        RadioButton adminBtn = new RadioButton("Admin");
+        RadioButton studentBtn = new RadioButton("Student");
+        adminBtn.setToggleGroup(roleGroup);
+        studentBtn.setToggleGroup(roleGroup);
+        studentBtn.setSelected(true);
+        styleToggle(adminBtn);
+        styleToggle(studentBtn);
+
+        HBox toggleBox = new HBox(adminBtn, studentBtn);
+        toggleBox.setAlignment(Pos.CENTER_LEFT);
+        toggleBox.setSpacing(0);
+        toggleBox.setPadding(new Insets(10));
+        toggleBox.setBackground(new Background(new BackgroundFill(Color.web("#e6f0ff"), new CornerRadii(30), Insets.EMPTY)));
+
+        adminBtn.setOnAction(e -> {
+            primaryStage.close();
+            try {
+                new LogInPage().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        leftSection.getChildren().addAll(logoBox, pageTitle, toggleBox);
+
+        VBox formBox = new VBox(20);
+        formBox.setAlignment(Pos.CENTER);
+        formBox.setPadding(new Insets(40));
+        formBox.setBackground(new Background(new BackgroundFill(Color.web("#003d66", 0.7), new CornerRadii(30), Insets.EMPTY)));
+
+        Label userLabel = new Label("Username");
+        userLabel.setFont(Font.font("Segoe UI", 20));
+        userLabel.setTextFill(Color.WHITE);
+        TextField idField = new TextField();
+        idField.setPromptText("Enter ID");
+        idField.setFont(Font.font("Segoe UI", 16));
+        idField.setMaxWidth(300);
+
+        Label passLabel = new Label("Password");
+        passLabel.setFont(Font.font("Segoe UI", 20));
+        passLabel.setTextFill(Color.WHITE);
+        PasswordField passField = new PasswordField();
+        passField.setPromptText("Enter Password");
+        passField.setFont(Font.font("Segoe UI", 16));
+        passField.setMaxWidth(300);
+
+        CheckBox termsBox = new CheckBox();
+        Label termsLabel = new Label("Terms and Conditions");
+        termsLabel.setFont(Font.font("Segoe UI", 14));
+        termsLabel.setTextFill(Color.WHITE);
+        termsLabel.setCursor(javafx.scene.Cursor.HAND);
+        termsLabel.setOnMouseClicked(e -> {
+            Alert termsAlert = new Alert(Alert.AlertType.INFORMATION);
+            termsAlert.setTitle("Terms and Conditions");
+            termsAlert.setHeaderText("IMPACT: Inventory Management Platform for All Cleaning Tools");
+            termsAlert.setContentText("1. Acceptance of Terms...\n2. User Accounts...\n3. Terms of Use...\n4. Role Selection...\n5. Agreement...\n6. Security...\n7. Violations...");
+            termsAlert.showAndWait();
+            termsBox.setSelected(true);
+        });
+        termsLabel.setOnMouseEntered(e -> termsLabel.setTextFill(Color.LIGHTBLUE));
+        termsLabel.setOnMouseExited(e -> termsLabel.setTextFill(Color.WHITE));
+        HBox termsContainer = new HBox(10, termsBox, termsLabel);
+        termsContainer.setAlignment(Pos.CENTER_LEFT);
+
+        Button loginBtn = new Button("Log In");
+        loginBtn.setFont(Font.font("Segoe UI", 16));
+        loginBtn.setCursor(javafx.scene.Cursor.HAND);
+        loginBtn.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;");
+        loginBtn.setEffect(new DropShadow());
+        loginBtn.setOnMouseEntered(e -> loginBtn.setStyle("-fx-background-color: white; -fx-text-fill: #003366;"));
+        loginBtn.setOnMouseExited(e -> loginBtn.setStyle("-fx-background-color: #cce6ff; -fx-text-fill: #003366;"));
+
+        loginBtn.setOnAction(e -> {
+            if (!termsBox.isSelected()) {
+                showAlert(Alert.AlertType.WARNING, "You must agree to the Terms and Conditions.");
+                return;
+            }
+
+            String idNumber = idField.getText().trim();
+            String password = passField.getText();
+
+            if (validateCredentials(idNumber, password)) {
+                showAlert(Alert.AlertType.INFORMATION, "Welcome Student!");
+                primaryStage.close();
+                javafx.application.Platform.runLater(() -> {
+                    try {
+                        StudentPage studentPage = new StudentPage();
+                        studentPage.setStudentId(idNumber);
+                        studentPage.start(new Stage());
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                });
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Invalid Student Credentials.");
+            }
+        });
+
+        Hyperlink updatePasswordLink = new Hyperlink("Update Password");
+        updatePasswordLink.setFont(Font.font("Segoe UI", 14));
+        updatePasswordLink.setTextFill(Color.LIGHTBLUE);
+        updatePasswordLink.setOnAction(e -> showUpdatePasswordDialog());
+
+        Label backToRegister = new Label("Back to Registration");
+        backToRegister.setFont(Font.font("Segoe UI", 14));
+        backToRegister.setTextFill(Color.WHITE);
+        backToRegister.setCursor(javafx.scene.Cursor.HAND);
+        backToRegister.setOnMouseEntered(e -> backToRegister.setTextFill(Color.LIGHTBLUE));
+        backToRegister.setOnMouseExited(e -> backToRegister.setTextFill(Color.WHITE));
+        backToRegister.setOnMouseClicked(e -> {
+            primaryStage.close();
+            try {
+                new RegistrationPage().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        formBox.getChildren().addAll(userLabel, idField, passLabel, passField, loginBtn, termsContainer, updatePasswordLink, backToRegister);
+
+        mainLayout.setLeft(leftSection);
+        mainLayout.setCenter(formBox);
+
+        Scene scene = new Scene(mainLayout, 950, 600);
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(false);
+        primaryStage.show();
+    }
+
+    private void showUpdatePasswordDialog() {
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Update Password");
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField idField = new TextField();
+        idField.setPromptText("Student ID");
+
+        PasswordField oldPasswordField = new PasswordField();
+        oldPasswordField.setPromptText("Old Password");
+
+        PasswordField newPasswordField = new PasswordField();
+        newPasswordField.setPromptText("New Password");
+
+        TextField oldPasswordVisible = new TextField();
+        oldPasswordVisible.setPromptText("Old Password");
+        oldPasswordVisible.setManaged(false);
+        oldPasswordVisible.setVisible(false);
+
+        TextField newPasswordVisible = new TextField();
+        newPasswordVisible.setPromptText("New Password");
+        newPasswordVisible.setManaged(false);
+        newPasswordVisible.setVisible(false);
+
+        oldPasswordVisible.textProperty().bindBidirectional(oldPasswordField.textProperty());
+        newPasswordVisible.textProperty().bindBidirectional(newPasswordField.textProperty());
+
+        CheckBox showPasswordCheck = new CheckBox("Show Password");
+        showPasswordCheck.setOnAction(e -> {
+            boolean show = showPasswordCheck.isSelected();
+
+            oldPasswordVisible.setVisible(show);
+            oldPasswordVisible.setManaged(show);
+            oldPasswordField.setVisible(!show);
+            oldPasswordField.setManaged(!show);
+
+            newPasswordVisible.setVisible(show);
+            newPasswordVisible.setManaged(show);
+            newPasswordField.setVisible(!show);
+            newPasswordField.setManaged(!show);
+        });
+
+        grid.add(new Label("ID:"), 0, 0);
+        grid.add(idField, 1, 0);
+        grid.add(new Label("Old Password:"), 0, 1);
+        grid.add(oldPasswordField, 1, 1);
+        grid.add(oldPasswordVisible, 1, 1);
+        grid.add(new Label("New Password:"), 0, 2);
+        grid.add(newPasswordField, 1, 2);
+        grid.add(newPasswordVisible, 1, 2);
+        grid.add(showPasswordCheck, 1, 3);
+
+        dialog.getDialogPane().setContent(grid);
+
+        ButtonType updateButtonType = new ButtonType("Update", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(updateButtonType, ButtonType.CANCEL);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == updateButtonType) {
+                String id = idField.getText();
+                String oldPass = oldPasswordField.getText();
+                String newPass = newPasswordField.getText();
+
+                Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                confirmAlert.setTitle("Confirm Password Change");
+                confirmAlert.setHeaderText("Are you sure you want to change your password?");
+                confirmAlert.setContentText("Click OK to proceed or Cancel to abort.");
+
+                confirmAlert.showAndWait().ifPresent(response -> {
+                    if (response == ButtonType.OK) {
+                        updatePasswordInDB(id, oldPass, newPass);
+                    } else {
+                        showAlert(Alert.AlertType.INFORMATION, "Password update cancelled.");
+                    }
+                });
+            }
+            return null;
+        });
+
+        dialog.showAndWait();
+    }
+
+    private void updatePasswordInDB(String id, String oldPassword, String newPassword) {
+        String checkQuery = "SELECT * FROM dbo.users WHERE id_number = ? AND password = ?";
+        String updateQuery = "UPDATE dbo.users SET password = ? WHERE id_number = ?";
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+
+            checkStmt.setString(1, id);
+            checkStmt.setString(2, oldPassword);
+            try (ResultSet rs = checkStmt.executeQuery()) {
+                if (rs.next()) {
+                    try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
+                        updateStmt.setString(1, newPassword);
+                        updateStmt.setString(2, id);
+                        int rows = updateStmt.executeUpdate();
+                        if (rows > 0) {
+                            showAlert(Alert.AlertType.INFORMATION, "Password updated successfully.");
+                        } else {
+                            showAlert(Alert.AlertType.WARNING, "Password update failed.");
+                        }
+                    }
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Old password is incorrect.");
+                }
+            }
+
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error: " + e.getMessage());
+        }
+    }
+
+    private boolean validateCredentials(String idNumber, String password) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String query = "SELECT * FROM dbo.users WHERE id_number = ? AND password = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, idNumber);
+                stmt.setString(2, password);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        System.out.println("Database Connection Successful");
+                        return true;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error: " + e.getMessage());
+        }
+        return false;
+    }
+
+    private void showAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle("Login");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void styleToggle(RadioButton rb) {
+        rb.setFont(Font.font("Segoe UI", 18));
+        rb.setPadding(new Insets(10, 20, 10, 20));
+        rb.setBackground(null);
+        rb.setTextFill(Color.web("#333"));
+        rb.setStyle("-fx-background-radius: 30;");
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
